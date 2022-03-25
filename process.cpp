@@ -14,12 +14,14 @@
 
 
 void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
-             off_t& num_read, uint16_t channels[NUM_CHANNELS]) {
+                  off_t& num_read, uint16_t channels[NUM_CHANNELS]) {
 
     #pragma HLS ARRAY_PARTITION variable=channels complete
 
     // initialize
     num_read = 0;
+
+    initialize_loop:
     for (int ich = 0; ich < NUM_CHANNELS; ++ich) {
         #pragma HLS unroll
         channels[ich] = 0;
@@ -41,6 +43,7 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
 
     num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
 
+    comp_loop:
     for (int comp = 0; comp < trigRecHeader->num_requested_components; ++comp) {
         if (num_to_read - num_read < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
             std::cerr << "The read buffer is too small to contain the fragment header\n";
@@ -65,6 +68,7 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
         const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
         const int num_frames = frames_size / sizeof(dunedaq::detdataformats::wib::WIBFrame);
 
+        frame_loop:
         for (int iframe = 0; iframe < num_frames; ++iframe) {
             const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[num_read]);
 
@@ -73,22 +77,34 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
             //         << ", fiber = " << frame->get_wib_header()->fiber_no << std::endl;
             // }
 
+            block_loop:
             for (int iblock = 0; 
                  iblock < dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame;
                  ++iblock) {
 
-                const int base_channel = iblock * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_block;
+                const int base_channel_block = iblock * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_block;
 
-                for (int ich = 0; 
-                     ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_block;
-                     ++ich) {
-                    # pragma HLS unroll
-                    const auto chanval = frame->get_channel(iblock, ich);
-                    const auto chan = base_channel + ich; 
-                    if (chanval > channels[chan]) {
-                        channels[chan] = chanval;
+                adc_loop:
+                for (int iadc = 0;
+                     iadc < dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block;
+                     ++iadc) {
+                    
+                    const int base_channel = base_channel_block + iadc * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
+
+                    ch_loop:
+                    for (int ich = 0; 
+                         ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
+                        ++ich) {
+                        # pragma HLS unroll
+                        const auto chanval = frame->get_channel(iblock, iadc, ich);
+                        const auto chan = base_channel + ich; 
+                        if (chanval > channels[chan]) {
+                            channels[chan] = chanval;
+                        }
                     }
+
                 }
+
             }
             num_read += sizeof(dunedaq::detdataformats::wib::WIBFrame);
         }
