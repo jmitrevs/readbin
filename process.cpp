@@ -13,7 +13,7 @@
 // process a trigger record and subsequent data
 
 
-void process(uint8_t readbuf[READ_SIZE], int num_to_read, 
+void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
              off_t& num_read, uint16_t channels[NUM_CHANNELS]) {
 
     #pragma HLS ARRAY_PARTITION variable=channels complete
