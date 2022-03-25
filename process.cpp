@@ -16,7 +16,7 @@
 void process(uint8_t readbuf[READ_SIZE], int num_to_read, 
              off_t& num_read, uint16_t channels[NUM_CHANNELS]) {
 
-    #pragma HLS ARRAY_PARTITION variable=ret_val complete
+    #pragma HLS ARRAY_PARTITION variable=channels complete
 
     // initialize
     num_read = 0;
