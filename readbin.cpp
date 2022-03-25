@@ -42,8 +42,9 @@ fileHelper::~fileHelper() {
 }
 
 static uint8_t readbuf[READ_SIZE];
-static uint8_t writebuf[WRITE_SIZE];
 
+using writebuf_t = uint16_t;
+static writebuf_t writebuf[NUM_CHANNELS*MAX_RECORDS];
 
 int main(int ac, char** av) {
 
@@ -89,9 +90,9 @@ int main(int ac, char** av) {
 
         // Now process the files
         off_t inoff = 0;
-        off_t outoff = 0;
         auto numread = pread(fhin.fd(), static_cast<void *>(readbuf), READ_SIZE, inoff);
 
+        long channels_base = 0;
         while (true) {
             // std::cout << "numread = " << numread << ", inoff = " << inoff << ", outoff = " << outoff << std::endl;
             if (numread < 0) {
@@ -102,23 +103,25 @@ int main(int ac, char** av) {
                 break;
             }
             off_t numReadIn;
-            off_t numWritten;
-            process(readbuf, writebuf, numread, numReadIn, numWritten);
-            // std::cout << "numReadIn = " << numReadIn << ", numWritten = " << numWritten << std::endl;
-            auto numActuallyWritten = pwrite(fhout.fd(), static_cast<void *>(writebuf), numWritten, outoff);
-            if (numActuallyWritten < 0) {
-                std::cerr << "ERR: pwrite failed: "
-                          << " error: " << errno << ", " << strerror(errno) << std::endl;
-                exit(EXIT_FAILURE);
-            } else if (numActuallyWritten != numWritten) {
-                std::cerr << "ERR: pwrite failed: "
-                          << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
-                exit(EXIT_FAILURE);
-            }  
+            process(readbuf, numread, numReadIn, &writebuf[channels_base]);
+            // std::cout << "numReadIn = " << numReadIn << std::endl;
             inoff += numReadIn;
-            outoff += numWritten;
+            channels_base += NUM_CHANNELS;
             numread =  pread(fhin.fd(), static_cast<void *>(readbuf), READ_SIZE, inoff);
         }
+
+        auto numWritten = channels_base * sizeof(writebuf_t);
+        auto numActuallyWritten = pwrite(fhout.fd(), static_cast<void *>(writebuf), numWritten, 0);
+        if (numActuallyWritten < 0) {
+            std::cerr << "ERR: pwrite failed: "
+                        << " error: " << errno << ", " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        } else if (numActuallyWritten != numWritten) {
+            std::cerr << "ERR: pwrite failed: "
+                        << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
+            exit(EXIT_FAILURE);
+        }  
+
     }
     catch(std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";
