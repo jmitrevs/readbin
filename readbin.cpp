@@ -103,7 +103,7 @@ int main(int ac, char** av) {
                 break;
             }
             off_t numReadIn;
-            process_data(readbuf, numread, numReadIn, &writebuf[channels_base]);
+            process_data(readbuf, numread, &numReadIn, &writebuf[channels_base]);
             // std::cout << "numReadIn = " << numReadIn << std::endl;
             inoff += numReadIn;
             channels_base += NUM_CHANNELS;

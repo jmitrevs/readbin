@@ -14,12 +14,10 @@
 
 
 void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
-                  off_t& num_read, uint16_t channels[NUM_CHANNELS]) {
-
-    #pragma HLS ARRAY_PARTITION variable=channels complete
+                  off_t* num_read, uint16_t channels[NUM_CHANNELS]) {
 
     // initialize
-    num_read = 0;
+    *num_read = 0;
 
     initialize_loop:
     for (int ich = 0; ich < NUM_CHANNELS; ++ich) {
@@ -30,39 +28,39 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
     const auto trigRecHeader = reinterpret_cast<dunedaq::daqdataformats::TriggerRecordHeaderData *>(readbuf);
 
     if (trigRecHeader->trigger_record_header_marker != dunedaq::daqdataformats::TriggerRecordHeaderData::s_trigger_record_header_magic) {
-        
+
         std::cerr << "The parsed trigger record header did not have the right magic number: " << std::hex <<  trigRecHeader->trigger_record_header_marker
                   << " (expected " << dunedaq::daqdataformats::TriggerRecordHeaderData::s_trigger_record_header_magic << ")\n";
         return;
     }
 
-    num_read += sizeof(dunedaq::daqdataformats::TriggerRecordHeaderData);
+    *num_read += sizeof(dunedaq::daqdataformats::TriggerRecordHeaderData);
 
     // this should be followed by component request
-    const auto compReq = reinterpret_cast<dunedaq::daqdataformats::ComponentRequest *>(&readbuf[num_read]);
+    const auto compReq = reinterpret_cast<dunedaq::daqdataformats::ComponentRequest *>(&readbuf[*num_read]);
 
-    num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
+    *num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
 
     comp_loop:
     for (int comp = 0; comp < trigRecHeader->num_requested_components; ++comp) {
-        if (num_to_read - num_read < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
+        if (num_to_read - *num_read < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
             std::cerr << "The read buffer is too small to contain the fragment header\n";
             return;
-        }            
-        const auto fragmentHeader = reinterpret_cast<dunedaq::daqdataformats::FragmentHeader *>(&readbuf[num_read]);
+        }
+        const auto fragmentHeader = reinterpret_cast<dunedaq::daqdataformats::FragmentHeader *>(&readbuf[*num_read]);
         if (fragmentHeader->fragment_header_marker != dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic) {
             std::cerr << "The parsed fragment header did not have the right magic number: " << std::hex << fragmentHeader->fragment_header_marker
-                      << " (expected " << dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic << ")\n";
+                     << " (expected " << dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic << ")\n";
             return;
         }
 
         // make sure that all the fragments were read in
-        if (num_read + fragmentHeader->size > num_to_read) {
+        if (*num_read + fragmentHeader->size > num_to_read) {
             std::cerr << "The read buffer is too small to contain the fragment\n";
             return;
         }
 
-        num_read += sizeof(dunedaq::daqdataformats::FragmentHeader);
+        *num_read += sizeof(dunedaq::daqdataformats::FragmentHeader);
 
         // let's see the number of frames
         const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
@@ -70,15 +68,15 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
 
         frame_loop:
         for (int iframe = 0; iframe < num_frames; ++iframe) {
-            const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[num_read]);
+            const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[*num_read]);
 
             // if (iframe == 0) {
-            //     outputtext << "Slot = " << frame->get_wib_header()->slot_no 
+            //     outputtext << "Slot = " << frame->get_wib_header()->slot_no
             //         << ", fiber = " << frame->get_wib_header()->fiber_no << std::endl;
             // }
 
             block_loop:
-            for (int iblock = 0; 
+            for (int iblock = 0;
                  iblock < dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame;
                  ++iblock) {
 
@@ -88,25 +86,36 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
                 for (int iadc = 0;
                      iadc < dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block;
                      ++iadc) {
-                    
+
                     const int base_channel = base_channel_block + iadc * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
 
-                    ch_loop:
-                    for (int ich = 0; 
+                    uint16_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                    #pragma HLS array_partition variable=chanval complete
+                    uint16_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                    #pragma HLS array_partition variable=curr_best complete
+                    ch_read_loop:
+                    for (int ich = 0;
                          ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
                         ++ich) {
-                        # pragma HLS unroll
-                        const auto chanval = frame->get_channel(iblock, iadc, ich);
-                        const auto chan = base_channel + ich; 
-                        if (chanval > channels[chan]) {
-                            channels[chan] = chanval;
+                        #pragma HLS unroll
+                        chanval[ich] = frame->get_channel(iblock, iadc, ich);
+                        curr_best[ich] = channels[base_channel + ich];
+                    }
+
+                    ch_eval_loop:
+                    for (int ich = 0;
+                         ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
+                        ++ich) {
+                        # pragma HLS pipeline
+                        if (chanval[ich] > curr_best[ich]) {
+                            channels[base_channel + ich] = chanval[ich];
                         }
                     }
 
                 }
 
             }
-            num_read += sizeof(dunedaq::detdataformats::wib::WIBFrame);
+            *num_read += sizeof(dunedaq::detdataformats::wib::WIBFrame);
         }
     }
 }
