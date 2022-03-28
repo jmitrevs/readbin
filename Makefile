@@ -1,7 +1,7 @@
-CXX=clang++
+CXX=g++
 RM=rm -f
 CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include
-LDFLAGS=-g -l boost_program_options
+LDLIBS=-lboost_program_options
 
 SRCS=readbin.cpp process.cpp
 OBJS=$(subst .cpp,.o,$(SRCS))
