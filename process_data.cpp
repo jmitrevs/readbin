@@ -13,7 +13,7 @@
 // process a trigger record and subsequent data
 
 
-void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
+void process_data(uint8_t readbuf[READ_SIZE], long num_to_read,
                   off_t* num_read, writebuf_t channels[NUM_CHANNELS]) {
 
     // initialize

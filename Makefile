@@ -23,7 +23,7 @@ depend: .depend
 $(KERNEL).xclbin: $(KERNEL).xo
 	v++ -l -t $(TYPE) --platform $(PLATFORM) $(KERNEL).xo -o $(KERNEL).xclbin
 
-$(KERNEL).xo: $(KERNEL).cpp
+$(KERNEL).xo: $(KERNEL).cpp readbin.h
 	emconfigutil --platform $(PLATFORM) --nd 1
 	v++ -c -t $(TYPE) --platform $(PLATFORM) -k $(KERNEL) $(VPPFLAGS) $(KERNEL).cpp -o $(KERNEL).xo 
 

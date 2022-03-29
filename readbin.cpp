@@ -165,12 +165,12 @@ int main(int ac, char** av) {
                                                          nullptr, nullptr,
                                                          &err)); // error code
 
-
+        std::cout << "Here" << std::endl;
         auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, inoff);
- 
+        std::cout << "Here 2" << std::endl;
         long channels_base = 0;
         while (true) {
-            // std::cout << "numread = " << numread << ", inoff = " << inoff << ", outoff = " << outoff << std::endl;
+            std::cout << "numread = " << std::hex << numread << ", inoff = " << inoff << std::endl;
             if (numread < 0) {
                 std::cerr << "ERR: pread failed: "
                           << " error: " << errno << ", " << strerror(errno) << std::endl;
@@ -193,7 +193,7 @@ int main(int ac, char** av) {
             // std::cout << "numReadIn = " << numReadIn << std::endl;
             inoff += numReadIn;
             channels_base += NUM_CHANNELS;
-            numread =  pread(fhin.fd(), p2p_in, READ_SIZE, inoff);
+            numread =  pread(fhin.fd(), p2p_in, READBUF_SIZE, inoff);
         }
 
         auto numWritten = channels_base * sizeof(writebuf_t);
