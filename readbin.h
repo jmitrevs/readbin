@@ -3,7 +3,7 @@
 #include "detdataformats/wib/WIBFrame.hpp"
 
 //const int READ_SIZE = 0x8000000;
-constexpr long READ_SIZE =  0x1d00100;
+constexpr long READ_SIZE =  0x1d01000;
 constexpr long MAX_RECORDS = 64;
 
 using writebuf_t = uint16_t;
