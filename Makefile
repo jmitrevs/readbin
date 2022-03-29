@@ -20,10 +20,10 @@ readbin: $(OBJS)
 
 depend: .depend
 
-$(KERNEL).xclbin: $(KERNEL).xc
+$(KERNEL).xclbin: $(KERNEL).xo
 	v++ -l -t $(TYPE) --platform $(PLATFORM) $(KERNEL).xo -o $(KERNEL).xclbin
 
-$(KERNEL).xc: $(KERNEL).cpp
+$(KERNEL).xo: $(KERNEL).cpp
 	emconfigutil --platform $(PLATFORM) --nd 1
 	v++ -c -t $(TYPE) --platform $(PLATFORM) -k $(KERNEL) $(VPPFLAGS) $(KERNEL).cpp -o $(KERNEL).xo 
 
@@ -32,7 +32,7 @@ $(KERNEL).xc: $(KERNEL).cpp
 	$(CXX) $(CPPFLAGS) -MM $^>>./.depend;
 
 clean:
-	$(RM) $(OBJS) $(KERNEL).xclbin $(KERNEL).xc
+	$(RM) $(OBJS) $(KERNEL).xclbin $(KERNEL).xo
 
 distclean: clean
 	$(RM) *~ .depend
