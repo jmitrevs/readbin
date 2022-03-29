@@ -14,7 +14,7 @@
 
 
 void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
-                  off_t* num_read, uint16_t channels[NUM_CHANNELS]) {
+                  off_t* num_read, writebuf_t channels[NUM_CHANNELS]) {
 
     // initialize
     *num_read = 0;
@@ -89,9 +89,9 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
 
                     const int base_channel = base_channel_block + iadc * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
 
-                    uint16_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                    writebuf_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
                     #pragma HLS array_partition variable=chanval complete
-                    uint16_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                    writebuf_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
                     #pragma HLS array_partition variable=curr_best complete
                     ch_read_loop:
                     for (int ich = 0;

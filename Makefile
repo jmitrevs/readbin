@@ -1,10 +1,14 @@
 CXX=g++
 RM=rm -f
-CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include
-LDLIBS=-lboost_program_options
+CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include
+LDFLAGS=-L${XILINX_XRT}/lib
+LDLIBS=-lboost_program_options -lOpenCL
 
-SRCS=readbin.cpp process.cpp
+SRCS=readbin.cpp xcl2.cpp
 OBJS=$(subst .cpp,.o,$(SRCS))
+
+PLATFORM=xilinx_u2_gen3x4_xdma_gc_2_202110_1
+TYPE=sw_emu
 
 all: readraw
 

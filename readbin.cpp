@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
+#include "xcl2.hpp"
 #include "readbin.h"
 
 // Use a class for file acces for RAII
@@ -27,7 +28,7 @@ fileHelper::fileHelper(std::string filename, int oflag, int permission) {
 	m_fd = open(filename.c_str(), oflag);
     } else {
 	m_fd = open(filename.c_str(), oflag, permission);
-    }   
+    }
     if (m_fd < 0) {
         std::stringstream ss;
         ss << "Could not open " << filename;
@@ -41,21 +42,20 @@ fileHelper::~fileHelper() {
     }
 }
 
-static uint8_t readbuf[READ_SIZE];
-
-using writebuf_t = uint16_t;
-static writebuf_t writebuf[NUM_CHANNELS*MAX_RECORDS];
-
 int main(int ac, char** av) {
 
     try {
 
         std::string infile;
         std::string outfile;
+        std::string xclbin_file;
+        std::string dev_id;
 
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help,h", "produce help message")
+            ("xclbin-file,x", po::value<std::string>(&xclbin_file), "xclbin file")
+            ("device,d", po::value<std::string>(&dev_id)->default_value("0"), "device id")
             ("input-file,i", po::value<std::string>(&infile), "input file")
             ("output-file,o", po::value<std::string>(&outfile), "output file")
             ;
@@ -83,15 +83,91 @@ int main(int ac, char** av) {
             std::cerr << "output-file not given." << std::endl;
             return 1;
         }
-        
-        fileHelper fhin(infile, O_RDONLY); // | O_DIRECT);
 
-        fileHelper fhout(outfile, O_CREAT | O_WRONLY, 0644); // | O_DIRECT);
+        // setup OpenCL stuff
+        cl_int err;
+        cl::Context context;
+        cl::CommandQueue q;
+
+        auto devices = xcl::get_xil_devices();
+        // read_binary_file() is a utility API which will load the binaryFile
+        // and will return the pointer to file buffer.
+        auto fileBuf = xcl::read_binary_file(xclbin_file);
+        cl::Program::Binaries bins{{fileBuf.data(), fileBuf.size()}};
+        cl::Program program;
+
+        auto pos = dev_id.find(":");
+        cl::Device device;
+        if (pos == std::string::npos) {
+            uint32_t device_index = stoi(dev_id);
+            if (device_index >= devices.size()) {
+                std::cout << "The device_index provided using -d flag is outside the range of "
+                             "available devices\n";
+                return EXIT_FAILURE;
+            }
+            device = devices[device_index];
+        } else {
+            if (xcl::is_emulation()) {
+                std::cout << "Device bdf is not supported for the emulation flow\n";
+                return EXIT_FAILURE;
+            }
+            device = xcl::find_device_bdf(devices, dev_id);
+        }
+
+        // Creating Context and Command Queue for selected Device
+        OCL_CHECK(err, context = cl::Context(device, nullptr, nullptr, nullptr, &err));
+        OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err));
+        std::cout << "Trying to program device[" << dev_id << "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
+        program = cl::Program(context, {device}, bins, nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::cout << "Failed to program device[" << dev_id << "] with xclbin file!\n";
+            exit(EXIT_FAILURE);
+        } else
+            std::cout << "Device[" << dev_id << "]: program successful!\n";
+
+        // Now do buffers
+        constexpr auto WRITE_SIZE = NUM_CHANNELS*MAX_RECORDS;
+
+        // std::vector<uint8_t, aligned_allocator<uint8_t>> readbuf(READ_SIZE)
+        // std::vector<writebuf_t, aligned_allocator<writebuf_t>> writebuf(WRITE_SIZE)
+
+        constexpr size_t READBUF_SIZE = READ_SIZE * sizeof(uint8_t);
+        constexpr size_t WRITEBUF_SIZE = WRITE_SIZE * sizeof(writebuf_t);
+
+        // open files
+        fileHelper fhin(infile, O_RDONLY | O_DIRECT);
+        fileHelper fhout(outfile, O_CREAT | O_WRONLY | O_DIRECT, 0644);
+
+        // Allocate Buffer in Global Memory
+        cl_mem_ext_ptr_t inExt, outExt;
+        inExt = {XCL_MEM_EXT_P2P_BUFFER, nullptr, 0};
+        outExt = {XCL_MEM_EXT_P2P_BUFFER, nullptr, 0};
+
+        OCL_CHECK(err, cl::Buffer buffer_input(context, CL_MEM_READ_ONLY | CL_MEM_EXT_PTR_XILINX, READBUF_SIZE, &inExt,
+                                               &err));
+        OCL_CHECK(err, cl::Buffer buffer_output(context, CL_MEM_WRITE_ONLY | CL_MEM_EXT_PTR_XILINX, WRITEBUF_SIZE,
+                                                &outExt, &err));
+
+        OCL_CHECK(err, cl::Buffer num_read_in(context, CL_MEM_WRITE_ONLY, sizeof(off_t), NULL, &err));
+
+        cl::Kernel krnl;
+        OCL_CHECK(err, krnl = cl::Kernel(program, "processing", &err));
+
 
         // Now process the files
         off_t inoff = 0;
-        auto numread = pread(fhin.fd(), static_cast<void *>(readbuf), READ_SIZE, inoff);
+        // nMap P2P device buffers to host access pointers
+        OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
+                                                         CL_TRUE,           // blocking call
+                                                         CL_MAP_READ,       // Indicates we will be writing
+                                                         0,                 // buffer offset
+                                                         READBUF_SIZE, // size in bytes
+                                                         nullptr, nullptr,
+                                                         &err)); // error code
 
+
+        auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, inoff);
+ 
         long channels_base = 0;
         while (true) {
             // std::cout << "numread = " << numread << ", inoff = " << inoff << ", outoff = " << outoff << std::endl;
@@ -102,16 +178,35 @@ int main(int ac, char** av) {
             } else if (numread == 0) {
                 break;
             }
+
+            OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
+            OCL_CHECK(err, err = krnl.setArg(1, numread));
+            OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
+            OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
+
+            // Launch the Kernel
+            OCL_CHECK(err, err = q.enqueueTask(krnl));
+
             off_t numReadIn;
-            process_data(readbuf, numread, &numReadIn, &writebuf[channels_base]);
+            OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(off_t), &numReadIn));
+
             // std::cout << "numReadIn = " << numReadIn << std::endl;
             inoff += numReadIn;
             channels_base += NUM_CHANNELS;
-            numread =  pread(fhin.fd(), static_cast<void *>(readbuf), READ_SIZE, inoff);
+            numread =  pread(fhin.fd(), p2p_in, READ_SIZE, inoff);
         }
 
         auto numWritten = channels_base * sizeof(writebuf_t);
-        auto numActuallyWritten = pwrite(fhout.fd(), static_cast<void *>(writebuf), numWritten, 0);
+
+        OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
+                                                          CL_TRUE,                    // blocking call
+                                                          CL_MAP_WRITE, // Indicates we will be writing
+                                                          0,                          // buffer offset
+                                                          numWritten,          // size in bytes
+                                                          nullptr, nullptr,
+                                                          &err)); // error code
+
+        auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, numWritten, 0);
         if (numActuallyWritten < 0) {
             std::cerr << "ERR: pwrite failed: "
                         << " error: " << errno << ", " << strerror(errno) << std::endl;
@@ -120,7 +215,7 @@ int main(int ac, char** av) {
             std::cerr << "ERR: pwrite failed: "
                         << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
             exit(EXIT_FAILURE);
-        }  
+        }
 
     }
     catch(std::exception& e) {
