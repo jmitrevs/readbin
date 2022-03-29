@@ -151,7 +151,7 @@ int main(int ac, char** av) {
         OCL_CHECK(err, cl::Buffer num_read_in(context, CL_MEM_WRITE_ONLY, sizeof(off_t), NULL, &err));
 
         cl::Kernel krnl;
-        OCL_CHECK(err, krnl = cl::Kernel(program, "processing", &err));
+        OCL_CHECK(err, krnl = cl::Kernel(program, "process_data", &err));
 
 
         // Now process the files
