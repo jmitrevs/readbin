@@ -148,14 +148,14 @@ int main(int ac, char** av) {
         OCL_CHECK(err, cl::Buffer buffer_output(context, CL_MEM_WRITE_ONLY | CL_MEM_EXT_PTR_XILINX, WRITEBUF_SIZE,
                                                 &outExt, &err));
 
-        OCL_CHECK(err, cl::Buffer num_read_in(context, CL_MEM_WRITE_ONLY, sizeof(off_t), NULL, &err));
+        OCL_CHECK(err, cl::Buffer num_read_in(context, CL_MEM_WRITE_ONLY, sizeof(num_read_t), NULL, &err));
+        OCL_CHECK(err, cl::Buffer num_written_out(context, CL_MEM_WRITE_ONLY, sizeof(num_read_t), NULL, &err));
 
         cl::Kernel krnl;
         OCL_CHECK(err, krnl = cl::Kernel(program, "process_data", &err));
 
 
-        // Now process the files
-        off_t inoff = 0;
+
         // nMap P2P device buffers to host access pointers
         OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
                                                          CL_TRUE,           // blocking call
@@ -165,38 +165,34 @@ int main(int ac, char** av) {
                                                          nullptr, nullptr,
                                                          &err)); // error code
 
-        std::cout << "Here" << std::endl;
-        auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, inoff);
-        std::cout << "Here 2" << std::endl;
+        auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, 0);
         long channels_base = 0;
-        while (true) {
-            std::cout << "numread = " << std::hex << numread << ", inoff = " << inoff << std::endl;
-            if (numread < 0) {
-                std::cerr << "ERR: pread failed: "
-                          << " error: " << errno << ", " << strerror(errno) << std::endl;
-                exit(EXIT_FAILURE);
-            } else if (numread == 0) {
-                break;
-            }
-
-            OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
-            OCL_CHECK(err, err = krnl.setArg(1, numread));
-            OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
-            OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
-
-            // Launch the Kernel
-            OCL_CHECK(err, err = q.enqueueTask(krnl));
-
-            off_t numReadIn;
-            OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(off_t), &numReadIn));
-
-            // std::cout << "numReadIn = " << numReadIn << std::endl;
-            inoff += numReadIn;
-            channels_base += NUM_CHANNELS;
-            numread =  pread(fhin.fd(), p2p_in, READBUF_SIZE, inoff);
+        std::cout << "numread = " << std::hex << numread <<  std::endl;
+        if (numread < 0) {
+            std::cerr << "ERR: pread failed: "
+                        << " error: " << errno << ", " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        } else if (numread == 0) {
+            exit(EXIT_SUCCESS);
         }
 
-        auto numWritten = channels_base * sizeof(writebuf_t);
+        OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
+        OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
+        OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
+        OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
+        OCL_CHECK(err, err = krnl.setArg(4, num_written_out));
+
+        // Launch the Kernel
+        OCL_CHECK(err, err = q.enqueueTask(krnl));
+
+        // can use for debugging
+        num_read_t numReadIn;
+        OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(num_read_t), &numReadIn));
+
+        num_read_t numWrittenOut;
+        OCL_CHECK(err, err = q.enqueueReadBuffer(num_written_out, CL_TRUE, 0, sizeof(num_read_t), &numWrittenOut));
+
+        auto numWritten = numWrittenOut * sizeof(writebuf_t);
 
         OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
                                                           CL_TRUE,                    // blocking call
