@@ -196,7 +196,7 @@ int main(int ac, char** av) {
 
         OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
                                                           CL_TRUE,                    // blocking call
-                                                          CL_MAP_WRITE, // Indicates we will be writing
+                                                          CL_MAP_WRITE | CL_MAP_READ, // Indicates we will be writing
                                                           0,                          // buffer offset
                                                           numWritten,          // size in bytes
                                                           nullptr, nullptr,

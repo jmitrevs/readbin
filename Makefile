@@ -24,7 +24,6 @@ $(KERNEL).xclbin: $(KERNEL).xo
 	v++ -l -t $(TYPE) --platform $(PLATFORM) $(KERNEL).xo -o $(KERNEL).xclbin
 
 $(KERNEL).xo: $(KERNEL).cpp readbin.h
-	emconfigutil --platform $(PLATFORM) --nd 1
 	v++ -c -t $(TYPE) --platform $(PLATFORM) -k $(KERNEL) $(VPPFLAGS) $(KERNEL).cpp -o $(KERNEL).xo 
 
 .depend: $(SRCS)
@@ -36,5 +35,9 @@ clean:
 
 distclean: clean
 	$(RM) *~ .depend
+
+setup:
+	export XCL_EMULATION_MODE=$(PLATFORM)
+	emconfigutil --platform $(PLATFORM) --nd 1
 
 include .depend

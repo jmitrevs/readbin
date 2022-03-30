@@ -7,7 +7,7 @@ using num_read_t = uint32_t;
 
 //const int READ_SIZE = 0x8000000;
 constexpr long READ_SIZE =  0xc000'0000;
-constexpr long MAX_RECORDS = 4096;
+constexpr long MAX_RECORDS = 0x4000;
 
 using writebuf_t = uint16_t;
 
