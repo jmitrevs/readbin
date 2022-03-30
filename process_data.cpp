@@ -87,7 +87,6 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
 
             frame_loop:
             for (int iframe = 0; iframe < num_frames; ++iframe) {
-                #pragma HLS dataflow
 
                 const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[read_offset]);
 
