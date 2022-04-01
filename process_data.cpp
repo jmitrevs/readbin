@@ -20,7 +20,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
     *num_read = 0;
     *num_written = 0;
 
-    writebuf_t channels_loc[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame];
+    static writebuf_t channels_loc[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame];
     #pragma HLS ARRAY_PARTITION variable=channels_loc complete
 
     //uint8_t frame_buf[sizeof(dunedaq::detdataformats::wib::WIBFrame)];
@@ -108,9 +108,9 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                         iadc < dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block;
                         ++iadc) {
 
-                        writebuf_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                        static writebuf_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
                         #pragma HLS array_partition variable=chanval complete
-                        writebuf_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
+                        static writebuf_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
                         #pragma HLS array_partition variable=curr_best complete
                         ch_read_loop:
                         for (int ich = 0;
