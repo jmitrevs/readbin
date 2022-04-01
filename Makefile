@@ -37,7 +37,7 @@ distclean: clean
 	$(RM) *~ .depend
 
 setup:
-	export XCL_EMULATION_MODE=$(PLATFORM)
+	# export XCL_EMULATION_MODE=$(PLATFORM)  # doesn't work called here
 	emconfigutil --platform $(PLATFORM) --nd 1
 
 include .depend
