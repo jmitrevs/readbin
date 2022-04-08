@@ -7,12 +7,11 @@ using num_read_t = uint32_t;
 
 //const int READ_SIZE = 0x8000000;
 constexpr long READ_SIZE =  0xc000'0000;
-constexpr long MAX_RECORDS = 0x4000;
+constexpr long MAX_RECORDS = 0x40;
 
 using writebuf_t = uint16_t;
 
-constexpr int NUM_CHANNELS = dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_block
-        * dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame;
+constexpr int NUM_CHANNELS = dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame * MAX_RECORDS;
 
 // forward definition to process at most num_to_read events from readbuf;
 // actual number read is output in num_read. The variable channels

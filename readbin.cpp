@@ -126,13 +126,12 @@ int main(int ac, char** av) {
             std::cout << "Device[" << dev_id << "]: program successful!\n";
 
         // Now do buffers
-        constexpr auto WRITE_SIZE = NUM_CHANNELS*MAX_RECORDS;
 
         // std::vector<uint8_t, aligned_allocator<uint8_t>> readbuf(READ_SIZE)
-        // std::vector<writebuf_t, aligned_allocator<writebuf_t>> writebuf(WRITE_SIZE)
+        // std::vector<writebuf_t, aligned_allocator<writebuf_t>> writebuf(NUM_CHANNELS)
 
         constexpr size_t READBUF_SIZE = READ_SIZE * sizeof(uint8_t);
-        constexpr size_t WRITEBUF_SIZE = WRITE_SIZE * sizeof(writebuf_t);
+        constexpr size_t WRITEBUF_SIZE = NUM_CHANNELS * sizeof(writebuf_t);
 
         // open files
         fileHelper fhin(infile, O_RDONLY | O_DIRECT);

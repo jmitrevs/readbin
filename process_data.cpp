@@ -108,6 +108,9 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                         iadc < dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block;
                         ++iadc) {
 
+                        const int base_channel_adc = base_channel_block 
+                            + iadc * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
+
                         static writebuf_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
                         #pragma HLS array_partition variable=chanval complete
                         static writebuf_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
@@ -118,7 +121,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                             ++ich) {
                             #pragma HLS unroll
                             chanval[ich] = frame->get_channel(iblock, iadc, ich);
-                            curr_best[ich] = channels_loc[base_channel_block + ich];
+                            curr_best[ich] = channels_loc[base_channel_adc + ich];
                         }
                         ch_eval_loop:
                         for (int ich = 0;
@@ -126,7 +129,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                             ++ich) {
                             # pragma HLS pipeline
                             if (chanval[ich] > curr_best[ich]) {
-                                channels_loc[base_channel_block + ich] = chanval[ich];
+                                channels_loc[base_channel_adc + ich] = chanval[ich];
                             }
                         }
 

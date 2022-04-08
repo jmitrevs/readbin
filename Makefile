@@ -1,7 +1,7 @@
 CXX=g++
 RM=rm -f
 CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include
-VPPFLAGS=-I../daqdataformats/include -I../detdataformats/include -I.
+VPPFLAGS=--save-temps -I../daqdataformats/include -I../detdataformats/include -I.
 LDFLAGS=-L${XILINX_XRT}/lib
 LDLIBS=-lboost_program_options -lOpenCL
 
