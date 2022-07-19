@@ -41,6 +41,9 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
 
     *num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
 
+    std::cout << "trigRecHeader->num_requested_components = " << std::dec << trigRecHeader->num_requested_components << std::endl;
+
+
     comp_loop:
     for (int comp = 0; comp < trigRecHeader->num_requested_components; ++comp) {
         if (num_to_read - *num_read < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
@@ -65,6 +68,12 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
         // let's see the number of frames
         const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
         const int num_frames = frames_size / sizeof(dunedaq::detdataformats::wib::WIBFrame);
+
+        std::cout << "num_frames = " << std::hex << num_frames 
+            << ", num blocks = " << dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame
+            << ", num adc = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block
+            << ", num chan = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::endl;
+
 
         frame_loop:
         for (int iframe = 0; iframe < num_frames; ++iframe) {
