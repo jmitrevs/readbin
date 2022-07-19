@@ -1,14 +1,15 @@
 CXX=g++
 RM=rm -f
-CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include
-VPPFLAGS=--save-temps -I../daqdataformats/include -I../detdataformats/include -I.
-LDFLAGS=-L${XILINX_XRT}/lib
+CPPFLAGS=-g -std=c++17 -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include -I/cvmfs/sft.cern.ch/lcg/releases/Boost/1.78.0-f6f04/x86_64-centos8-gcc11-opt/include
+VPPFLAGS=-I../daqdataformats/include -I../detdataformats/include -I. -I./cnn/firmware
+LDFLAGS=-L${XILINX_XRT}/lib -L/cvmfs/sft.cern.ch/lcg/releases/Boost/1.78.0-f6f04/x86_64-centos8-gcc11-opt/lib
 LDLIBS=-lboost_program_options -lOpenCL
 
 SRCS=readbin.cpp xcl2.cpp
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 KERNEL=process_data
+KERNEL_SRCS=process_data.cpp cnn/firmware/vplane.cpp
 
 PLATFORM=xilinx_u2_gen3x4_xdma_gc_2_202110_1
 TYPE=sw_emu
@@ -21,10 +22,10 @@ readbin: $(OBJS)
 depend: .depend
 
 $(KERNEL).xclbin: $(KERNEL).xo
-	v++ -l -t $(TYPE) --platform $(PLATFORM) $(KERNEL).xo -o $(KERNEL).xclbin
+	v++ -l -t $(TYPE) --platform $(PLATFORM) $(KERNEL).xo $(VPPFLAGS) -o $(KERNEL).xclbin
 
-$(KERNEL).xo: $(KERNEL).cpp readbin.h
-	v++ -c -t $(TYPE) --platform $(PLATFORM) -k $(KERNEL) $(VPPFLAGS) $(KERNEL).cpp -o $(KERNEL).xo 
+$(KERNEL).xo: $(KERNEL_SRCS) readbin.h
+	v++ -c -t $(TYPE) --platform $(PLATFORM) -k $(KERNEL) $(VPPFLAGS) $(KERNEL_SRCS) -o $(KERNEL).xo
 
 .depend: $(SRCS)
 	$(RM) ./.depend
