@@ -1,5 +1,6 @@
 //#include <unistd.h>
 #include <iostream>
+#include <cmath>
 //#include <cstdint>
 //#include <sstream>
 //#include <stdexcept>
@@ -36,16 +37,16 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
 
     *num_read += sizeof(dunedaq::daqdataformats::TriggerRecordHeaderData);
 
-    // this should be followed by component request
-    const auto compReq = reinterpret_cast<dunedaq::daqdataformats::ComponentRequest *>(&readbuf[*num_read]);
-
-    *num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
-
-    std::cout << "trigRecHeader->num_requested_components = " << std::dec << trigRecHeader->num_requested_components << std::endl;
+    //std::cout << "trigRecHeader->num_requested_components = " << std::dec << trigRecHeader->num_requested_components << std::endl;
 
 
     comp_loop:
     for (int comp = 0; comp < trigRecHeader->num_requested_components; ++comp) {
+        // this should be followed by component request
+        // const auto compReq = reinterpret_cast<dunedaq::daqdataformats::ComponentRequest *>(&readbuf[*num_read]);
+
+        *num_read += sizeof(dunedaq::daqdataformats::ComponentRequest);
+
         if (num_to_read - *num_read < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
             std::cerr << "The read buffer is too small to contain the fragment header\n";
             return;
@@ -69,62 +70,55 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
         const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
         const int num_frames = frames_size / sizeof(dunedaq::detdataformats::wib::WIBFrame);
 
-        std::cout << "num_frames = " << std::hex << num_frames 
+        std::cout << "num_frames (hex) = " << std::hex << num_frames
             << ", num blocks = " << dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame
             << ", num adc = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block
-            << ", num chan = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::endl;
+            << ", num chan = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::dec << std::endl;
 
 
+        static double sum[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame];
+        static double sum2[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame];
+
+        for (int i = 0; i < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame; i++) {
+            sum[i] = 0;
+            sum2[i] = 0;
+        }
+
+        //const uint8_t ch = 1;
+
+        //std::cout << "Printing first 50 frames for channel " << static_cast<int>(ch) << std::endl;
+
+        uint32_t slot = 0, fiber = 0;
         frame_loop:
         for (int iframe = 0; iframe < num_frames; ++iframe) {
             const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[*num_read]);
 
-            // if (iframe == 0) {
-            //     outputtext << "Slot = " << frame->get_wib_header()->slot_no
-            //         << ", fiber = " << frame->get_wib_header()->fiber_no << std::endl;
-            // }
 
-            block_loop:
-            for (int iblock = 0;
-                 iblock < dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame;
-                 ++iblock) {
+            if (iframe == 0) {
+                slot = frame->get_wib_header()->slot_no;
+                fiber = frame->get_wib_header()->fiber_no;
+                std::cout << "slot, fiber: "  << slot << ", " << fiber << std::endl;
+            }
 
-                const int base_channel_block = iblock * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_block;
-
-                adc_loop:
-                for (int iadc = 0;
-                     iadc < dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block;
-                     ++iadc) {
-
-                    const int base_channel = base_channel_block + iadc * dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
-
-                    uint16_t chanval[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
-                    #pragma HLS array_partition variable=chanval complete
-                    uint16_t curr_best[dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc];
-                    #pragma HLS array_partition variable=curr_best complete
-                    ch_read_loop:
-                    for (int ich = 0;
-                         ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
-                        ++ich) {
-                        #pragma HLS unroll
-                        chanval[ich] = frame->get_channel(iblock, iadc, ich);
-                        curr_best[ich] = channels[base_channel + ich];
-                    }
-
-                    ch_eval_loop:
-                    for (int ich = 0;
-                         ich < dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc;
-                        ++ich) {
-                        # pragma HLS pipeline
-                        if (chanval[ich] > curr_best[ich]) {
-                            channels[base_channel + ich] = chanval[ich];
-                        }
-                    }
-
-                }
-
+            for (unsigned ch = 0;
+                ch < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame;
+                ch++) {
+                auto val = static_cast<double>(frame->get_channel(ch));
+                sum[ch] += val;
+                sum2[ch] += (val * val);
             }
             *num_read += sizeof(dunedaq::detdataformats::wib::WIBFrame);
         }
+
+        for (unsigned ch = 0;
+            ch < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame;
+            ch++) {
+            auto ave = sum[ch]/ num_frames;
+            auto ave2 = sum2[ch] / num_frames;
+            auto var = ave2 - ave*ave;
+            auto stddev = std::sqrt(var);
+            std::cout << "chan " << ch << ": average = " << ave << ", var = " << var << ", stddev = " << stddev << std::endl;
+        }
+        std::cout << std::endl;
     }
 }
