@@ -1,17 +1,21 @@
 // The general header file for the readbin program
+#ifndef READBIN_READBIN_H_
+#define READBIN_READBIN_H_
 
 #include "detdataformats/wib/WIBFrame.hpp"
+#include "cnn/firmware/defines.h"
+#include "mask.h"
 
 // Note:  this puts a limit of 4G on the max file size. Can change if needed
 using num_read_t = uint32_t;
 
 //const int READ_SIZE = 0x8000000;
 constexpr long READ_SIZE =  0xc000'0000;
-constexpr long MAX_RECORDS = 0x40;
+constexpr long MAX_RECORDS = 512;
 
-using writebuf_t = uint16_t;
+using writebuf_t = result_t::value_type;
 
-constexpr int NUM_CHANNELS = dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame * MAX_RECORDS;
+constexpr int NUM_CHANNELS = num_nonmasked_channels * MAX_RECORDS;
 
 // forward definition to process at most num_to_read events from readbuf;
 // actual number read is output in num_read. The variable channels
@@ -21,3 +25,5 @@ extern "C" {
 void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                   num_read_t* num_read, writebuf_t channels[NUM_CHANNELS], num_read_t *num_written);
 }
+
+#endif // READBIN_READBIN_H_

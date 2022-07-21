@@ -11,14 +11,23 @@
 #include "readbin.h"
 #include "cnn/firmware/defines.h"
 #include "cnn/firmware/vplane.h"
+#include "mask.h"
 
 // process a trigger record and subsequent data
 
-constexpr int NUM_NN_INPUTS = N_INPUT_1_1;
-constexpr int STRIDE = 128;   // divides evenly, unlike 150
-
+// these might become per-channel eventually
 void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                   num_read_t* num_read, writebuf_t channels[NUM_CHANNELS], num_read_t *num_written) {
+
+    constexpr int NUM_NN_INPUTS = N_INPUT_1_1;
+    constexpr int STRIDE = 128;   // divides evenly, unlike 150
+
+    using chan_val_t = ap_fixed<14, 14>;
+
+    // these may become per-channel eventually
+    const chan_val_t chan_pedestal = 2270;
+    const ap_fixed<8, 1> chan_scale = 0.015625;
+
 
     // initialize
     *num_read = 0;
@@ -28,19 +37,8 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
     hls::stream<input_t> nn_input("nn_input");
     hls::stream<result_t> nn_output("nn_output");
 
-    static input_t::value_type inarray[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame][NUM_NN_INPUTS];
+    static input_t inarray[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame][NUM_NN_INPUTS];
     #pragma HLS array_partition variable=inarray complete dim=2
-
-    static writebuf_t channels_loc[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame];
-    #pragma HLS ARRAY_PARTITION variable=channels_loc complete
-
-    //uint8_t frame_buf[sizeof(dunedaq::detdataformats::wib::WIBFrame)];
-
-    initialize_loop:
-    for (int i = 0; i < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame; ++i) {
-        #pragma HLS unroll
-        channels_loc[i] = 0;
-    }
 
     num_read_t read_offset = 0;
     num_read_t chan_offset = 0;
@@ -50,7 +48,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
 
     // loop over all the trigger records
     records_loop:
-    while(read_offset < max_to_start_new) {
+    while(read_offset < max_to_start_new && chan_offset <= NUM_CHANNELS - num_nonmasked_channels) {
 
         std::cout << "Current read index: " << std::hex << read_offset << ", max to start = " << max_to_start_new
                   << ", chan_offset = " << chan_offset << std::endl;
@@ -114,7 +112,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                 for (int iframe = 0; iframe < NUM_NN_INPUTS; ++iframe) {
 
                     const auto iframe_full = iframe + frame_block*STRIDE;
-                    std::cout << "iframe_full: " << iframe_full << std::endl;
+                    //std::cout << "iframe_full: " << iframe_full << std::endl;
                     const auto frame_offset = read_offset + iframe_full * sizeof(dunedaq::detdataformats::wib::WIBFrame);
                     const auto frame = reinterpret_cast<dunedaq::detdataformats::wib::WIBFrame *>(&readbuf[frame_offset]);
 
@@ -142,36 +140,30 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                                 const auto ich_full = base_channel_adc + ich;
                                 //inarray[ich_full][iframe] = frame->get_channel(iblock, iadc, ich);
                                 //std::cout << "inarray[" << ich_full << "][" << iframe << "] = frame->get_channel(" << iblock << ", " << iadc << ", " << ich << ") = " << frame->get_channel(iblock, iadc, ich);
-                                input_t::value_type val;
-                                val(15, 0) = frame->get_channel(iblock, iadc, ich);
-                                inarray[ich_full][iframe] = val;
+                                const chan_val_t val = frame->get_channel(iblock, iadc, ich);
+                                const chan_val_t shifted_val = val - chan_pedestal;
+                                inarray[ich_full][iframe][0] = shifted_val * chan_scale;
                                 //std::cout << ", val = " << static_cast<float>(val[0]) << std::endl;
                             }
                         }
                     }
                 }
                 //unsigned short size_in,size_out;
-                for (int ich = 0; ich < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame; ++ich) {
+                for (auto ich : channels_list) {
                     #pragma DATAFLOW
-                    std::cout << "ich = " << ich << std::endl;
+                    std::cout << "ich = " << ich << " ";
                     for (int i = 0; i < NUM_NN_INPUTS; i++) {
-                        std::cout << static_cast<float>(inarray[ich][i]) << ",";
+                        //std::cout << static_cast<float>(inarray[ich][i][0]) << ",";
                         nn_input.write(inarray[ich][i]);
                     }
                     std::cout << std::endl;
                     vplane(nn_input, nn_output);
                     auto outval = nn_output.read();
+                    channels[chan_offset++] = outval[0];
                     std::cout << "Outval: " << static_cast<float>(outval[0]) << std::endl;
                 }
             }
             read_offset += frames_size;
-            write_out_loop:
-            for (int i = 0; i < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame; ++i) {
-                #pragma HLS unroll
-                channels[chan_offset + i] = channels_loc[i];
-                channels_loc[i] = 0;
-            }
-            chan_offset += dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame;
         }
         // Trigger finished, so increment externally-visible count
         *num_read = read_offset;
