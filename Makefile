@@ -12,6 +12,7 @@ KERNEL=process_data
 KERNEL_SRCS=process_data.cpp cnn/firmware/vplane.cpp
 
 PLATFORM=xilinx_u2_gen3x4_xdma_gc_2_202110_1
+#PLATFORM=xilinx_u55c_gen3x16_xdma_3_202210_1
 TYPE=sw_emu
 
 all: readbin $(KERNEL).xclbin

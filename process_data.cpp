@@ -20,7 +20,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                   num_read_t* num_read, writebuf_t channels[NUM_CHANNELS], num_read_t *num_written) {
 
     constexpr int NUM_NN_INPUTS = N_INPUT_1_1;
-    constexpr int STRIDE = 128;   // divides evenly, unlike 150
+    constexpr int STRIDE = 150;
 
     using chan_val_t = ap_fixed<14, 14>;
 
@@ -96,17 +96,20 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
             // let's see the number of frames
             const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
             const int num_frames = frames_size / sizeof(dunedaq::detdataformats::wib::WIBFrame);
-            const int frame_blocks = frames_size / STRIDE;
+            const int num_frame_blocks_nom = num_frames / STRIDE;
+            // decrease number of frame blocks if reading full block would run past the end.
+            const int num_frame_blocks = (num_frames % STRIDE >= NUM_NN_INPUTS - STRIDE) ? num_frame_blocks_nom : num_frame_blocks_nom - 1;
 
             std::cout << "number of frames = " << std::dec << num_frames << std::endl;
             std::cout << "number of blocks per frame = " << std::dec << dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame << std::endl;
             std::cout << "number of adcs per block = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block << std::endl;
             std::cout << "number of channels per adc = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::endl;
             std::cout << "number of channels per pframe = " << dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame << std::endl;
+            std::cout << "number of frames blocks = " << std::dec << num_frame_blocks << std::endl;
 
 
             coarse_frame_loop:
-            for (int frame_block = 0; frame_block < frame_blocks; ++frame_block) {
+            for (int frame_block = 0; frame_block < num_frame_blocks; ++frame_block) {
                 std::cout << "frame_block: " << frame_block << std::endl;
                 frame_loop:
                 for (int iframe = 0; iframe < NUM_NN_INPUTS; ++iframe) {
@@ -151,16 +154,16 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                 //unsigned short size_in,size_out;
                 for (auto ich : channels_list) {
                     #pragma DATAFLOW
-                    std::cout << "ich = " << ich << " ";
+                    //std::cout << "ich = " << ich << " ";
                     for (int i = 0; i < NUM_NN_INPUTS; i++) {
                         //std::cout << static_cast<float>(inarray[ich][i][0]) << ",";
                         nn_input.write(inarray[ich][i]);
                     }
-                    std::cout << std::endl;
+                    //std::cout << std::endl;
                     vplane(nn_input, nn_output);
                     auto outval = nn_output.read();
                     channels[chan_offset++] = outval[0];
-                    std::cout << "Outval: " << static_cast<float>(outval[0]) << std::endl;
+                    //std::cout << "Outval: " << static_cast<float>(outval[0]) << std::endl;
                 }
             }
             read_offset += frames_size;
