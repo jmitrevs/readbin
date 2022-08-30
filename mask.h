@@ -3,6 +3,8 @@
 #define READBIN_MASK_H_
 
 constexpr unsigned num_nonmasked_channels = 160;
+constexpr unsigned num_nonmasked_channels_po2 = 256;
+
 
 constexpr unsigned channels_list[num_nonmasked_channels] = {
     0,

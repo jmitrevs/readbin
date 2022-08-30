@@ -204,6 +204,7 @@ int main(int ac, char** av) {
                                                               nullptr, nullptr,
                                                               &err)); // error code
 
+            std::cout << "numWritten: " << std::hex << numWritten << ", fileout_offset: " << fileout_offset << std::endl;
             auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, numWritten, fileout_offset);
             if (numActuallyWritten < 0) {
                 std::cerr << "ERR: pwrite failed: "

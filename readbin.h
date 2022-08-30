@@ -15,7 +15,7 @@ constexpr long MAX_RECORDS = 512;
 
 using writebuf_t = result_t::value_type;
 
-constexpr int NUM_CHANNELS = num_nonmasked_channels * MAX_RECORDS;
+constexpr int NUM_CHANNELS = num_nonmasked_channels_po2 * MAX_RECORDS;
 
 // forward definition to process at most num_to_read events from readbuf;
 // actual number read is output in num_read. The variable channels
