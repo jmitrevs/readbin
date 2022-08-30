@@ -110,6 +110,9 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
             *num_read += sizeof(dunedaq::detdataformats::wib::WIBFrame);
         }
 
+        int count = 0;
+        double ave_ave = 0.0;
+        double ave_stddev = 0.0;
         for (unsigned ch = 0;
             ch < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame;
             ch++) {
@@ -117,8 +120,18 @@ void process_data(uint8_t readbuf[READ_SIZE], int num_to_read,
             auto ave2 = sum2[ch] / num_frames;
             auto var = ave2 - ave*ave;
             auto stddev = std::sqrt(var);
-            std::cout << "chan " << ch << ": average = " << ave << ", var = " << var << ", stddev = " << stddev << std::endl;
+            //std::cout << "chan " << ch << ": average = " << ave << ", var = " << var << ", stddev = " << stddev << std::endl;
+            if (ave > 2000) {
+                std::cout << ch << "," << std::endl;
+                count++;
+                ave_ave += ave;
+                ave_stddev += stddev;
+            } else {
+                //std::cout << "false," << std::endl;
+            }
+
         }
+        std::cout << "overall average = " << ave_ave/count << ", stddev = " << ave_stddev/count << std::endl;
         std::cout << std::endl;
     }
 }

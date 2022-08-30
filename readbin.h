@@ -1,4 +1,7 @@
 // The general header file for the readbin program
+#ifndef READBIN_READBIN_H_
+#define READBIN_READBIN_H_
+
 
 #include "detdataformats/wib/WIBFrame.hpp"
 
@@ -15,3 +18,5 @@ constexpr int NUM_CHANNELS = dunedaq::detdataformats::wib::ColdataBlock::s_num_c
 
 void process_data(uint8_t readbuf[READ_SIZE], int num_to_read, 
                   off_t* num_read, uint16_t channels[NUM_CHANNELS]);
+
+#endif
