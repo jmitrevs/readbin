@@ -164,54 +164,63 @@ int main(int ac, char** av) {
                                                          nullptr, nullptr,
                                                          &err)); // error code
 
-        auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, 0);
-        long channels_base = 0;
-        std::cout << "numread = " << std::hex << numread <<  std::endl;
-        if (numread < 0) {
-            std::cerr << "ERR: pread failed: "
-                        << " error: " << errno << ", " << strerror(errno) << std::endl;
-            exit(EXIT_FAILURE);
-        } else if (numread == 0) {
-            exit(EXIT_SUCCESS);
+        num_read_t filein_offset = 0;
+        num_read_t fileout_offset = 0;
+
+        while(1) {
+            auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset);
+            std::cout << "numread = " << std::hex << numread <<  std::endl;
+            if (numread < 0) {
+                std::cerr << "ERR: pread failed: "
+                            << " error: " << errno << ", " << strerror(errno) << std::endl;
+                exit(EXIT_FAILURE);
+            } else if (numread == 0) {
+                exit(EXIT_SUCCESS);
+            }
+
+            OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
+            OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
+            OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
+            OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
+            OCL_CHECK(err, err = krnl.setArg(4, num_written_out));
+
+            // Launch the Kernel
+            OCL_CHECK(err, err = q.enqueueTask(krnl));
+
+            // read the counts
+            num_read_t numReadIn;
+            OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(num_read_t), &numReadIn));
+
+            num_read_t numWrittenOut;
+            OCL_CHECK(err, err = q.enqueueReadBuffer(num_written_out, CL_TRUE, 0, sizeof(num_read_t), &numWrittenOut));
+
+            auto numWritten = numWrittenOut * sizeof(writebuf_t);
+
+            OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
+                                                              CL_TRUE,                    // blocking call
+                                                              CL_MAP_WRITE | CL_MAP_READ, // Indicates we will be writing
+                                                              0,                          // buffer offset
+                                                              numWritten,          // size in bytes
+                                                              nullptr, nullptr,
+                                                              &err)); // error code
+
+            auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, numWritten, fileout_offset);
+            if (numActuallyWritten < 0) {
+                std::cerr << "ERR: pwrite failed: "
+                            << " error: " << errno << ", " << strerror(errno) << std::endl;
+                exit(EXIT_FAILURE);
+            } else if (numActuallyWritten != numWritten) {
+                std::cerr << "ERR: pwrite failed: "
+                            << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            filein_offset += numReadIn;
+            fileout_offset += numWritten;
+            std::cout << "Next iteration with read offset (hex) " << std::hex << filein_offset 
+                << " and write offset (hex) " << fileout_offset << std::endl;
+            /// TO MAKE DEBUGGING SHORTER
+            break;
         }
-
-        OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
-        OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
-        OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
-        OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
-        OCL_CHECK(err, err = krnl.setArg(4, num_written_out));
-
-        // Launch the Kernel
-        OCL_CHECK(err, err = q.enqueueTask(krnl));
-
-        // can use for debugging
-        num_read_t numReadIn;
-        OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(num_read_t), &numReadIn));
-
-        num_read_t numWrittenOut;
-        OCL_CHECK(err, err = q.enqueueReadBuffer(num_written_out, CL_TRUE, 0, sizeof(num_read_t), &numWrittenOut));
-
-        auto numWritten = numWrittenOut * sizeof(writebuf_t);
-
-        OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
-                                                          CL_TRUE,                    // blocking call
-                                                          CL_MAP_WRITE | CL_MAP_READ, // Indicates we will be writing
-                                                          0,                          // buffer offset
-                                                          numWritten,          // size in bytes
-                                                          nullptr, nullptr,
-                                                          &err)); // error code
-
-        auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, numWritten, 0);
-        if (numActuallyWritten < 0) {
-            std::cerr << "ERR: pwrite failed: "
-                        << " error: " << errno << ", " << strerror(errno) << std::endl;
-            exit(EXIT_FAILURE);
-        } else if (numActuallyWritten != numWritten) {
-            std::cerr << "ERR: pwrite failed: "
-                        << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
     }
     catch(std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";

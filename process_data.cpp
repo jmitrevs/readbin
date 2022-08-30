@@ -75,7 +75,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
             read_offset += sizeof(dunedaq::daqdataformats::ComponentRequest);
 
             if (num_to_read - read_offset < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
-                std::cerr << "The read buffer is too small to contain the fragment header\n";
+                std::cout << "The read buffer is too small to contain the fragment header\n";
                 return;
             }
             const auto fragmentHeader = reinterpret_cast<dunedaq::daqdataformats::FragmentHeader *>(&readbuf[read_offset]);
@@ -85,16 +85,18 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
                 return;
             }
 
-            // make sure that all the fragments were read in
-            if (read_offset + fragmentHeader->size > num_to_read) {
-                std::cerr << "The read buffer is too small to contain the fragment\n";
-                return;
-            }
-
             read_offset += sizeof(dunedaq::daqdataformats::FragmentHeader);
 
             // let's see the number of frames
             const auto frames_size = fragmentHeader->size - sizeof(dunedaq::daqdataformats::FragmentHeader);
+
+            std::cout << "frames size = " << std::dec << frames_size << std::endl;
+            // make sure that all the fragments were read in
+            if (read_offset + frames_size > num_to_read) {
+                std::cout << "The frames size is too big to be read\n";
+                return;
+            }
+
             const int num_frames = frames_size / sizeof(dunedaq::detdataformats::wib::WIBFrame);
             const int num_frame_blocks_nom = num_frames / STRIDE;
             // decrease number of frame blocks if reading full block would run past the end.

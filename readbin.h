@@ -9,8 +9,8 @@
 // Note:  this puts a limit of 4G on the max file size. Can change if needed
 using num_read_t = uint32_t;
 
-//const int READ_SIZE = 0x8000000;
-constexpr long READ_SIZE =  0xc000'0000;
+//constexpr long READ_SIZE =   0x800'0000;
+constexpr long READ_SIZE =  0x200'0000;
 constexpr long MAX_RECORDS = 512;
 
 using writebuf_t = result_t::value_type;
