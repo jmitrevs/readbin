@@ -133,14 +133,17 @@ int main(int ac, char** av) {
         constexpr size_t READBUF_SIZE = READ_SIZE * sizeof(uint8_t);
         constexpr size_t WRITEBUF_SIZE = NUM_CHANNELS * sizeof(writebuf_t);
 
+	std::cout << "READBUF_SIZE = " << std::hex << READBUF_SIZE << ", WRITEBUF_SIZE = " << WRITEBUF_SIZE << std::endl;
+
         // open files
         fileHelper fhin(infile, O_RDONLY | O_DIRECT);
         fileHelper fhout(outfile, O_CREAT | O_WRONLY | O_DIRECT, 0644);
 
         // Allocate Buffer in Global Memory
-        cl_mem_ext_ptr_t inExt, outExt;
-        inExt = {XCL_MEM_EXT_P2P_BUFFER, nullptr, 0};
-        outExt = {XCL_MEM_EXT_P2P_BUFFER, nullptr, 0};
+        cl_mem_ext_ptr_t inExt = {0};
+        cl_mem_ext_ptr_t outExt = {0};
+        inExt.flags = XCL_MEM_EXT_P2P_BUFFER;
+        outExt.flags = XCL_MEM_EXT_P2P_BUFFER;
 
         OCL_CHECK(err, cl::Buffer buffer_input(context, CL_MEM_READ_ONLY | CL_MEM_EXT_PTR_XILINX, READBUF_SIZE, &inExt,
                                                &err));
@@ -154,20 +157,19 @@ int main(int ac, char** av) {
         OCL_CHECK(err, krnl = cl::Kernel(program, "process_data", &err));
 
 
-
-        // nMap P2P device buffers to host access pointers
-        OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
-                                                         CL_TRUE,           // blocking call
-                                                         CL_MAP_READ,       // Indicates we will be writing
-                                                         0,                 // buffer offset
-                                                         READBUF_SIZE, // size in bytes
-                                                         nullptr, nullptr,
-                                                         &err)); // error code
-
         num_read_t filein_offset = 0;
         num_read_t fileout_offset = 0;
 
         while(1) {
+	  // nMap P2P device buffers to host access pointers
+	  OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
+							   CL_TRUE,           // blocking call
+							   CL_MAP_READ,       // Indicates we will be writing
+							   0,                 // buffer offset
+							   READBUF_SIZE, // size in bytes
+							   nullptr, nullptr,
+							   &err)); // error code
+
             auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset);
             std::cout << "numread = " << std::hex << numread <<  std::endl;
             if (numread < 0) {
@@ -177,6 +179,8 @@ int main(int ac, char** av) {
             } else if (numread == 0) {
                 exit(EXIT_SUCCESS);
             }
+
+	    //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_input, p2p_in));
 
             OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
             OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
@@ -198,25 +202,26 @@ int main(int ac, char** av) {
 
             OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
                                                               CL_TRUE,                    // blocking call
-                                                              CL_MAP_WRITE | CL_MAP_READ, // Indicates we will be writing
+                                                              CL_MAP_WRITE | CL_MAP_READ,                // Indicates we will be writing
                                                               0,                          // buffer offset
-                                                              numWritten,          // size in bytes
+                                                              WRITEBUF_SIZE,          // size in bytes
                                                               nullptr, nullptr,
                                                               &err)); // error code
 
             std::cout << "numWritten: " << std::hex << numWritten << ", fileout_offset: " << fileout_offset << std::endl;
-            auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, numWritten, fileout_offset);
+            auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, WRITEBUF_SIZE, fileout_offset);
             if (numActuallyWritten < 0) {
                 std::cerr << "ERR: pwrite failed: "
                             << " error: " << errno << ", " << strerror(errno) << std::endl;
                 exit(EXIT_FAILURE);
-            } else if (numActuallyWritten != numWritten) {
+            } else if (numActuallyWritten != WRITEBUF_SIZE) {
                 std::cerr << "ERR: pwrite failed: "
                             << numActuallyWritten << "  bytes written, but asked for " << numWritten << std::endl;
                 exit(EXIT_FAILURE);
             }
+	    //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_output, p2p_out));
             filein_offset += numReadIn;
-            fileout_offset += numWritten;
+            fileout_offset += WRITEBUF_SIZE;
             std::cout << "Next iteration with read offset (hex) " << std::hex << filein_offset 
                 << " and write offset (hex) " << fileout_offset << std::endl;
             /// TO MAKE DEBUGGING SHORTER
