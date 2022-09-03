@@ -183,11 +183,11 @@ int main(int ac, char** av) {
 
             auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset_aligned);
             std::cout << "numread = " << std::hex << numread <<  std::endl;
-            if (numread < 0) {
+            if (numread < rel_offset) {
                 std::cerr << "ERR: pread failed: "
                             << " error: " << errno << ", " << strerror(errno) << std::endl;
                 exit(EXIT_FAILURE);
-            } else if (numread == 0) {
+            } else if (numread == rel_offset) {
                 exit(EXIT_SUCCESS);
             }
 
