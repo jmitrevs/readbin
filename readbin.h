@@ -22,7 +22,7 @@ constexpr int NUM_CHANNELS = dunedaq::detdataformats::wib::WIBFrame::s_num_ch_pe
 // represents the output (currently the max value)
 
 extern "C" {
-void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
+void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t initial_offset,
                   num_read_t* num_read, writebuf_t channels[NUM_CHANNELS], num_read_t *num_written);
 }
 

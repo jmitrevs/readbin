@@ -13,6 +13,11 @@ namespace po = boost::program_options;
 #include "xcl2.hpp"
 #include "readbin.h"
 
+num_read_t align(num_read_t unaligned) {
+    const num_read_t alignment = 512;
+    return (unaligned & ~(alignment - 1));
+}
+
 // Use a class for file acces for RAII
 class fileHelper {
 public:
@@ -161,6 +166,12 @@ int main(int ac, char** av) {
         num_read_t fileout_offset = 0;
 
         while(1) {
+
+            num_read_t filein_offset_aligned = align(filein_offset);
+            num_read_t rel_offset = filein_offset - filein_offset_aligned;
+
+            std::cout << "aligned read offset (hex) " << std::hex << filein_offset_aligned << ", rel_offset = " << rel_offset << std::endl;
+
             // nMap P2P device buffers to host access pointers
             OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
                                CL_TRUE,           // blocking call
@@ -170,7 +181,7 @@ int main(int ac, char** av) {
                                nullptr, nullptr,
                                &err)); // error code
 
-            auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset);
+            auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset_aligned);
             std::cout << "numread = " << std::hex << numread <<  std::endl;
             if (numread < 0) {
                 std::cerr << "ERR: pread failed: "
@@ -184,9 +195,10 @@ int main(int ac, char** av) {
 
             OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
             OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
-            OCL_CHECK(err, err = krnl.setArg(2, num_read_in));
-            OCL_CHECK(err, err = krnl.setArg(3, buffer_output));
-            OCL_CHECK(err, err = krnl.setArg(4, num_written_out));
+            OCL_CHECK(err, err = krnl.setArg(2, rel_offset));
+            OCL_CHECK(err, err = krnl.setArg(3, num_read_in));
+            OCL_CHECK(err, err = krnl.setArg(4, buffer_output));
+            OCL_CHECK(err, err = krnl.setArg(5, num_written_out));
 
             // Launch the Kernel
             OCL_CHECK(err, err = q.enqueueTask(krnl));
@@ -220,12 +232,10 @@ int main(int ac, char** av) {
                 exit(EXIT_FAILURE);
             }
             //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_output, p2p_out));
-            filein_offset += numReadIn;
+            filein_offset = filein_offset_aligned + numReadIn;
             fileout_offset += WRITEBUF_SIZE;
             std::cout << "Next iteration with read offset (hex) " << std::hex << filein_offset
                 << " and write offset (hex) " << fileout_offset << std::endl;
-            /// TO MAKE DEBUGGING SHORTER
-            break;
         }
     }
     catch(std::exception& e) {

@@ -17,7 +17,7 @@
 // process a trigger record and subsequent data
 
 // these might become per-channel eventually
-void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
+void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t initial_offset,
                   num_read_t* num_read, writebuf_t channels[NUM_CHANNELS], num_read_t *num_written) {
 
     constexpr int NUM_NN_INPUTS = N_INPUT_1_1;
@@ -37,7 +37,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
     static input_t inarray[dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame][NUM_NN_INPUTS];
     #pragma HLS array_partition variable=inarray complete dim=2
 
-    num_read_t read_offset = 0;
+    num_read_t read_offset = initial_offset;
     num_read_t chan_offset = 0;
 
     constexpr num_read_t header_size = sizeof(dunedaq::daqdataformats::TriggerRecordHeaderData) + sizeof(dunedaq::daqdataformats::ComponentRequest);
@@ -45,8 +45,8 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
 
 
     // loop over all the trigger records
-    //records_loop:
-    //while(read_offset < max_to_start_new && chan_offset <= NUM_CHANNELS - num_nonmasked_channels) {
+    records_loop:
+    while(read_offset < max_to_start_new && chan_offset <= NUM_CHANNELS - dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame) {
 
         std::cout << "Current read index: " << std::hex << read_offset << ", max to start = " << max_to_start_new
                   << ", chan_offset = " << chan_offset << std::endl;
@@ -185,5 +185,5 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read,
         // Trigger finished, so increment externally-visible count
         *num_read = read_offset;
         *num_written = chan_offset;
-        //}
+    }
 }
