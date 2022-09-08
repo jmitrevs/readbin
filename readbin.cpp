@@ -59,8 +59,6 @@ int main(int ac, char** av) {
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help,h", "produce help message")
-            ("xclbin-file,x", po::value<std::string>(&xclbin_file), "xclbin file")
-            ("device,d", po::value<std::string>(&dev_id)->default_value("0"), "device id")
             ("input-file,i", po::value<std::string>(&infile), "input file")
             ("output-file,o", po::value<std::string>(&outfile), "output file")
             ;
@@ -89,48 +87,6 @@ int main(int ac, char** av) {
             return 1;
         }
 
-        // setup OpenCL stuff
-        cl_int err;
-        cl::Context context;
-        cl::CommandQueue q;
-
-        auto devices = xcl::get_xil_devices();
-        // read_binary_file() is a utility API which will load the binaryFile
-        // and will return the pointer to file buffer.
-        auto fileBuf = xcl::read_binary_file(xclbin_file);
-        cl::Program::Binaries bins{{fileBuf.data(), fileBuf.size()}};
-        cl::Program program;
-
-        auto pos = dev_id.find(":");
-        cl::Device device;
-        if (pos == std::string::npos) {
-            uint32_t device_index = stoi(dev_id);
-            if (device_index >= devices.size()) {
-                std::cout << "The device_index provided using -d flag is outside the range of "
-                             "available devices\n";
-                return EXIT_FAILURE;
-            }
-            device = devices[device_index];
-        } else {
-            if (xcl::is_emulation()) {
-                std::cout << "Device bdf is not supported for the emulation flow\n";
-                return EXIT_FAILURE;
-            }
-            device = xcl::find_device_bdf(devices, dev_id);
-        }
-
-        // Creating Context and Command Queue for selected Device
-        OCL_CHECK(err, context = cl::Context(device, nullptr, nullptr, nullptr, &err));
-        OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err));
-        std::cout << "Trying to program device[" << dev_id << "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-        program = cl::Program(context, {device}, bins, nullptr, &err);
-        if (err != CL_SUCCESS) {
-            std::cout << "Failed to program device[" << dev_id << "] with xclbin file!\n";
-            exit(EXIT_FAILURE);
-        } else
-            std::cout << "Device[" << dev_id << "]: program successful!\n";
-
-        // Now do buffers
 
         // std::vector<uint8_t, aligned_allocator<uint8_t>> readbuf(READ_SIZE)
         // std::vector<writebuf_t, aligned_allocator<writebuf_t>> writebuf(NUM_CHANNELS)
@@ -150,17 +106,8 @@ int main(int ac, char** av) {
         inExt.flags = XCL_MEM_EXT_P2P_BUFFER;
         outExt.flags = XCL_MEM_EXT_P2P_BUFFER;
 
-        OCL_CHECK(err, cl::Buffer buffer_input(context, CL_MEM_READ_ONLY | CL_MEM_EXT_PTR_XILINX, READBUF_SIZE, &inExt,
-                                               &err));
-        OCL_CHECK(err, cl::Buffer buffer_output(context, CL_MEM_WRITE_ONLY | CL_MEM_EXT_PTR_XILINX, WRITEBUF_SIZE,
-                                                &outExt, &err));
-
-        OCL_CHECK(err, cl::Buffer num_read_in(context, CL_MEM_WRITE_ONLY, sizeof(num_read_t), NULL, &err));
-        OCL_CHECK(err, cl::Buffer num_written_out(context, CL_MEM_WRITE_ONLY, sizeof(num_read_t), NULL, &err));
-
-        cl::Kernel krnl;
-        OCL_CHECK(err, krnl = cl::Kernel(program, "process_data", &err));
-
+        static uint8_t readbuf[READ_SIZE];
+        static writebuf_t channels[NUM_CHANNELS]
 
         num_read_t filein_offset = 0;
         num_read_t fileout_offset = 0;
@@ -172,16 +119,7 @@ int main(int ac, char** av) {
 
             std::cout << "aligned read offset (hex) " << std::hex << filein_offset_aligned << ", rel_offset = " << rel_offset << std::endl;
 
-            // nMap P2P device buffers to host access pointers
-            OCL_CHECK(err, void* p2p_in = q.enqueueMapBuffer(buffer_input,      // buffer
-                               CL_TRUE,           // blocking call
-                               CL_MAP_READ,       // Indicates we will be writing
-                               0,                 // buffer offset
-                               READBUF_SIZE, // size in bytes
-                               nullptr, nullptr,
-                               &err)); // error code
-
-            auto numread = pread(fhin.fd(), p2p_in, READBUF_SIZE, filein_offset_aligned);
+            auto numread = pread(fhin.fd(), readbuf, READBUF_SIZE, filein_offset_aligned);
             std::cout << "numread = " << std::hex << numread <<  std::endl;
             if (numread < rel_offset) {
                 std::cerr << "ERR: pread failed: "
@@ -191,24 +129,11 @@ int main(int ac, char** av) {
                 exit(EXIT_SUCCESS);
             }
 
-            //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_input, p2p_in));
-
-            OCL_CHECK(err, err = krnl.setArg(0, buffer_input));
-            OCL_CHECK(err, err = krnl.setArg(1, static_cast<num_read_t>(numread)));
-            OCL_CHECK(err, err = krnl.setArg(2, rel_offset));
-            OCL_CHECK(err, err = krnl.setArg(3, num_read_in));
-            OCL_CHECK(err, err = krnl.setArg(4, buffer_output));
-            OCL_CHECK(err, err = krnl.setArg(5, num_written_out));
-
-            // Launch the Kernel
-            OCL_CHECK(err, err = q.enqueueTask(krnl));
-
-            // read the counts
             num_read_t numReadIn;
-            OCL_CHECK(err, err = q.enqueueReadBuffer(num_read_in, CL_TRUE, 0, sizeof(num_read_t), &numReadIn));
-
             num_read_t numWrittenOut;
-            OCL_CHECK(err, err = q.enqueueReadBuffer(num_written_out, CL_TRUE, 0, sizeof(num_read_t), &numWrittenOut));
+
+            process_data(readbuf, numread, rel_offset, &numReadIn, channels, &numWrittenOut);
+            //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_input, p2p_in));
 
             auto numWritten = numWrittenOut * sizeof(writebuf_t);
 
