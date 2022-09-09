@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
-#include "xcl2.hpp"
 #include "readbin.h"
 
 num_read_t align(num_read_t unaligned) {
