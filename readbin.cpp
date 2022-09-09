@@ -99,12 +99,6 @@ int main(int ac, char** av) {
         fileHelper fhin(infile, O_RDONLY | O_DIRECT);
         fileHelper fhout(outfile, O_CREAT | O_WRONLY | O_DIRECT, 0644);
 
-        // Allocate Buffer in Global Memory
-        cl_mem_ext_ptr_t inExt = {0};
-        cl_mem_ext_ptr_t outExt = {0};
-        inExt.flags = XCL_MEM_EXT_P2P_BUFFER;
-        outExt.flags = XCL_MEM_EXT_P2P_BUFFER;
-
         static uint8_t readbuf[READ_SIZE];
         static writebuf_t channels[NUM_CHANNELS]
 
@@ -135,14 +129,6 @@ int main(int ac, char** av) {
             //OCL_CHECK(err, err = q.enqueueUnmapBuffer(buffer_input, p2p_in));
 
             auto numWritten = numWrittenOut * sizeof(writebuf_t);
-
-            OCL_CHECK(err, void* p2p_out = q.enqueueMapBuffer(buffer_output,                      // buffer
-                                                              CL_TRUE,                    // blocking call
-                                                              CL_MAP_WRITE | CL_MAP_READ,                // Indicates we will be writing
-                                                              0,                          // buffer offset
-                                                              WRITEBUF_SIZE,          // size in bytes
-                                                              nullptr, nullptr,
-                                                              &err)); // error code
 
             std::cout << "numWritten: " << std::hex << numWritten << ", fileout_offset: " << fileout_offset << std::endl;
             auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, WRITEBUF_SIZE, fileout_offset);
