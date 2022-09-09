@@ -96,8 +96,8 @@ int main(int ac, char** av) {
         std::cout << "READBUF_SIZE = " << std::hex << READBUF_SIZE << ", WRITEBUF_SIZE = " << WRITEBUF_SIZE << std::endl;
 
         // open files
-        fileHelper fhin(infile, O_RDONLY | O_DIRECT);
-        fileHelper fhout(outfile, O_CREAT | O_WRONLY | O_DIRECT, 0644);
+        fileHelper fhin(infile, O_RDONLY);
+        fileHelper fhout(outfile, O_CREAT | O_WRONLY, 0644);
 
         static uint8_t readbuf[READ_SIZE];
         static writebuf_t channels[NUM_CHANNELS];
@@ -131,7 +131,7 @@ int main(int ac, char** av) {
             auto numWritten = numWrittenOut * sizeof(writebuf_t);
 
             std::cout << "numWritten: " << std::hex << numWritten << ", fileout_offset: " << fileout_offset << std::endl;
-            auto numActuallyWritten = pwrite(fhout.fd(), p2p_out, WRITEBUF_SIZE, fileout_offset);
+            auto numActuallyWritten = pwrite(fhout.fd(), channels, WRITEBUF_SIZE, fileout_offset);
             if (numActuallyWritten < 0) {
                 std::cerr << "ERR: pwrite failed: "
                             << " error: " << errno << ", " << strerror(errno) << std::endl;

@@ -133,7 +133,7 @@ void pooling2d_encoded_cl(
     #pragma HLS DATA_PACK variable=res_pack
     unsigned outputs_ready = 0;
 
-    hls::stream<typename data_T::value_type, CONFIG_T::pool_height * CONFIG_T::out_width> data_window[CONFIG_T::pool_height * CONFIG_T::pool_width * CONFIG_T::n_filt];
+    hls::stream<typename data_T::value_type> data_window[CONFIG_T::pool_height * CONFIG_T::pool_width * CONFIG_T::n_filt];
     // constexpr int win_depth = CONFIG_T::pool_height * CONFIG_T::out_width;
     // for (unsigned i_out = 0; i_out < CONFIG_T::pool_height * CONFIG_T::pool_width * CONFIG_T::n_filt; i_out++) {
     //     #pragma HLS STREAM variable=data_window[i_out] depth=win_depth
@@ -347,7 +347,7 @@ void pooling1d_encoded_cl(
     #pragma HLS DATA_PACK variable=res_pack
     unsigned outputs_ready = 0;
 
-    hls::stream<typename data_T::value_type, CONFIG_T::n_out> data_window[CONFIG_T::pool_width * CONFIG_T::n_filt];
+    hls::stream<typename data_T::value_type> data_window[CONFIG_T::pool_width * CONFIG_T::n_filt];
     // constexpr int win_depth = CONFIG_T::n_out;
     // for (unsigned i_out = 0; i_out < CONFIG_T::pool_width * CONFIG_T::n_filt; i_out++) {
     //     #pragma HLS STREAM variable=data_window[i_out] depth=win_depth

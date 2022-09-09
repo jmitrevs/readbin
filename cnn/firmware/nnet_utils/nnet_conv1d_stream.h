@@ -30,7 +30,7 @@ void conv_1d_encoded_cl(
 {
     assert(CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
 
-    hls::stream<typename data_T::value_type, CONFIG_T::out_width> data_window[CONFIG_T::filt_width * CONFIG_T::n_chan];
+    hls::stream<typename data_T::value_type> data_window[CONFIG_T::filt_width * CONFIG_T::n_chan];
     // const int win_depth = CONFIG_T::out_width;
     // for (unsigned i_out = 0; i_out < CONFIG_T::filt_width * CONFIG_T::n_chan; i_out++) {
     //     #pragma HLS STREAM variable=data_window[i_out] depth=win_depth
