@@ -100,7 +100,7 @@ int main(int ac, char** av) {
         fileHelper fhout(outfile, O_CREAT | O_WRONLY | O_DIRECT, 0644);
 
         static uint8_t readbuf[READ_SIZE];
-        static writebuf_t channels[NUM_CHANNELS]
+        static writebuf_t channels[NUM_CHANNELS];
 
         num_read_t filein_offset = 0;
         num_read_t fileout_offset = 0;
