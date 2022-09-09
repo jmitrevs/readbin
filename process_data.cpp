@@ -111,7 +111,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
 
             coarse_frame_loop:
             for (int frame_block = 0; frame_block < num_frame_blocks; ++frame_block) {
-                std::cout << "frame_block: " << frame_block << std::endl;
+                //std::cout << "frame_block: " << frame_block << std::endl;
                 frame_loop:
                 for (int iframe = 0; iframe < NUM_NN_INPUTS; ++iframe) {
 
