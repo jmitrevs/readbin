@@ -156,9 +156,9 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
                 //unsigned short size_in,size_out;
                 for (int ich = 0; ich < dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame; ++ich) {
                     #pragma HLS UNROLL factor = 4
-                    //std::cout << "ich = " << ich << " ";
                     const auto chan_index = chan_offset + ich;
-                    if (false && channel_mask[ich]) {
+                    //std::cout << "ich = " << ich << ", chan_index " << chan_index << std::endl;
+                    if (channel_mask[ich]) {
 
                         // the way to send/receive data from the nn
                         hls::stream<input_t> nn_input;
@@ -172,10 +172,11 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
                         vplane(nn_input, nn_output);
                         auto outval = nn_output.read();
                         channels[chan_index] = outval[0];
+                        //std::cout << "Outval: " << static_cast<float>(outval[0]) << std::endl;
                     } else {
                         channels[chan_index] = 0;
+                        //std::cout << "Outval: not calc (0)" << std::endl;
                     }
-                    //std::cout << "Outval: " << static_cast<float>(outval[0]) << std::endl;
                 }
                 chan_offset += dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame;
 
