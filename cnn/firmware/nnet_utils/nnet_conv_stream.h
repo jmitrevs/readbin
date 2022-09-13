@@ -93,7 +93,7 @@ void mult_buffer(
         data[id] = data_window[id].read();
     }
 
-    #pragma HLS INLINE region
+    #pragma HLS INLINE recursive
     if (CONFIG_T::strategy == nnet::latency) {
         dense_latency<typename data_T::value_type, typename res_T::value_type, typename CONFIG_T::mult_config>(data, res, weights, biases);
     } else {
@@ -160,13 +160,13 @@ void kernel_shift_1d(
     typename data_T::value_type kernel_window[CONFIG_T::filt_width * CONFIG_T::n_chan]
 ) {
     #pragma HLS inline
-    #pragma HLS PIPELINE II = 1
     
     // Shift kernel_window by one step to the left (manual shift operation)
     static const int filt_width = CONFIG_T::filt_width - 1;
     KernelShiftWidth: for (int i_iw = 0; i_iw < filt_width; i_iw++) {
-        #pragma HLS UNROLL
+        #pragma HLS PIPELINE II = 1
         KernelShiftChannel: for (unsigned i_ic = 0; i_ic < CONFIG_T::n_chan; i_ic++) {
+            #pragma HLS UNROLL
             // Shift every element in kernel_window to the left
             kernel_window[i_iw * CONFIG_T::n_chan + i_ic] = kernel_window[(i_iw + 1) * CONFIG_T::n_chan + i_ic];
         }
@@ -267,7 +267,7 @@ void compute_output_buffer_2d(
     #pragma HLS ARRAY_PARTITION variable=res_out complete dim = 0
 
     res_T res_pack;
-    #pragma HLS DATA_PACK variable=res_pack
+    PRAGMA_DATA_PACK(res_pack)
 
     // Add pixel to buffer
     nnet::shift_line_buffer<data_T, CONFIG_T>(in_elem, line_buffer, kernel_data);
@@ -276,7 +276,7 @@ void compute_output_buffer_2d(
     if ( (sX - lShiftX) == 0 && (sY - lShiftY) == 0 && pY > lShiftY - 1 && pX > lShiftX - 1) {
         
         // Dense multiply
-        #pragma HLS INLINE region
+        #pragma HLS INLINE recursive
         if (CONFIG_T::strategy == nnet::latency) {
             dense_latency<typename data_T::value_type, typename res_T::value_type, typename CONFIG_T::mult_config>(kernel_data, res_out, weights, biases);
         } else {
@@ -337,7 +337,7 @@ void compute_output_buffer_1d(
     #pragma HLS ARRAY_PARTITION variable=res_out complete dim = 0
 
     res_T res_pack;
-    #pragma HLS DATA_PACK variable=res_pack
+    PRAGMA_DATA_PACK(res_pack)
 
     // Add pixel to buffer
     nnet::kernel_shift_1d<data_T, CONFIG_T>(in_elem, kernel_data);
@@ -346,7 +346,7 @@ void compute_output_buffer_1d(
     if ( (sX - lShiftX) == 0 && pX > lShiftX - 1 ) {
         
         // Dense multiply
-        #pragma HLS INLINE region
+        #pragma HLS INLINE recursive
         if (CONFIG_T::strategy == nnet::latency) {
             dense_latency<typename data_T::value_type, typename res_T::value_type, typename CONFIG_T::mult_config>(kernel_data, res_out, weights, biases);
         } else {
