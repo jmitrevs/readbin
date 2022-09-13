@@ -158,7 +158,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
                     #pragma HLS UNROLL factor = 4
                     //std::cout << "ich = " << ich << " ";
                     const auto chan_index = chan_offset + ich;
-                    if (false && channel_mask[ich]) {
+                    if (channel_mask[ich]) {
 
                         // the way to send/receive data from the nn
                         hls::stream<input_t> nn_input;
