@@ -192,7 +192,7 @@ struct config8 : nnet::conv1d_config {
     static const unsigned reuse_factor = 16;
     static const unsigned n_zeros = 13172;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::latency;
+    static const unsigned strategy = nnet::resource;
     static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_width = 11;
     static const ap_uint<filt_width> pixels[min_width];
