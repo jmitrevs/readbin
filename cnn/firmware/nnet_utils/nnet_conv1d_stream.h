@@ -31,15 +31,15 @@ void conv_1d_encoded_cl(
     assert(CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
 
     hls::stream<typename data_T::value_type> data_window[CONFIG_T::filt_width * CONFIG_T::n_chan];
-    // const int win_depth = CONFIG_T::out_width;
-    // for (unsigned i_out = 0; i_out < CONFIG_T::filt_width * CONFIG_T::n_chan; i_out++) {
-    //     #pragma HLS STREAM variable=data_window[i_out] depth=win_depth
-    // }
+    const int win_depth = CONFIG_T::out_width;
+    for (unsigned i_out = 0; i_out < CONFIG_T::filt_width * CONFIG_T::n_chan; i_out++) {
+        #pragma HLS STREAM variable=data_window[i_out] depth=win_depth
+    }
 
     #pragma HLS ARRAY_PARTITION variable=CONFIG_T::pixels complete
 
     res_T res_pack;
-    #pragma HLS DATA_PACK variable=res_pack
+    PRAGMA_DATA_PACK(res_pack)
     unsigned outputs_ready = 0;
 
     ap_uint<CONFIG_T::filt_width> pixel_idx[data_T::size / CONFIG_T::n_chan];
@@ -80,7 +80,7 @@ void conv_1d_cl(
     typename CONFIG_T::weight_t weights[CONFIG_T::filt_width * CONFIG_T::n_chan * CONFIG_T::n_filt],
     typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
 {
-    #pragma HLS inline region
+    #pragma HLS inline recursive
     switch(CONFIG_T::implementation){
         case conv_implementation::linebuffer:
             conv_1d_buffer_cl<data_T, res_T, CONFIG_T>(data, res, weights, biases);
