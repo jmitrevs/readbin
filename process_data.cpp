@@ -162,7 +162,9 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
 
                         // the way to send/receive data from the nn
                         hls::stream<input_t> nn_input;
+                        #pragma HLS STREAM variable=nn_input depth=NUM_NN_INPUTS
                         hls::stream<result_t> nn_output;
+                        #pragma HLS STREAM variable=nn_output depth=1
 
                         for (int i = 0; i < NUM_NN_INPUTS; i++) {
                             //std::cout << static_cast<float>(inarray[ich][i][0]) << ",";
