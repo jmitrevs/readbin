@@ -16,7 +16,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <iostream>
+//#include <iostream>
 
 #include "vplane.h"
 #include "parameters.h"
@@ -27,8 +27,18 @@ void vplane(
 ) {
 
     //hls-fpga-machine-learning insert IO
-    #pragma HLS INTERFACE axis port=Conv_1_input,layer13_out 
+    //#pragma HLS INTERFACE axis port=Conv_1_input,layer13_out
     #pragma HLS DATAFLOW 
+
+	//hls-fpga-machine-learning insert weights
+	#include "weights/w2.h"
+	#include "weights/b2.h"
+	#include "weights/w5.h"
+	#include "weights/b5.h"
+	#include "weights/w8.h"
+	#include "weights/b8.h"
+	#include "weights/w12.h"
+	#include "weights/b12.h"
 
 #ifndef __SYNTHESIS__
     static bool loaded_weights = false;

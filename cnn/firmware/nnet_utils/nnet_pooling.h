@@ -2,6 +2,7 @@
 #define NNET_POOLING_H_
 
 #include <iostream>
+#include "nnet_common.h"
 #include "nnet_helpers.h"
 
 namespace nnet{
@@ -109,7 +110,7 @@ void pooling1d_cl(
 
     // TODO partition the arrays according to the reuse factor
     const int limit = pool_op_limit_1d<CONFIG_T>();
-    #pragma HLS ALLOCATION function instances=CONFIG_T::pool_op limit=limit
+    #pragma HLS ALLOCATION function instances=pool_op<data_T, CONFIG_T::pool_width, CONFIG_T::pool_op> limit=limit
     // Add any necessary padding
     unsigned padded_width = CONFIG_T::n_in + CONFIG_T::pad_left + CONFIG_T::pad_right;
     if (CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0) {
@@ -158,7 +159,7 @@ void global_pooling1d_cl(
 
     // TODO partition the arrays according to the reuse factor
     const int limit = pool_op_limit_1d<CONFIG_T>();
-    #pragma HLS ALLOCATION function instances=CONFIG_T::pool_op limit=limit
+    #pragma HLS ALLOCATION function instances=pool_op<data_T, CONFIG_T::pool_width, CONFIG_T::pool_op> limit=limit
 
     for(int ff = 0; ff < CONFIG_T::n_filt; ff++) {
         data_T pool[CONFIG_T::n_in];
@@ -197,7 +198,7 @@ struct pooling2d_config{
 
 template<typename CONFIG_T>
 constexpr int pool_op_limit(){
-    return (CONFIG_T::out_height * CONFIG_T::out_width) * CONFIG_T::n_filt / CONFIG_T::reuse_factor;
+    return DIV_ROUNDUP((CONFIG_T::out_height * CONFIG_T::out_width) * CONFIG_T::n_filt, CONFIG_T::reuse_factor);
 }
 
 template<class data_T, class res_T, typename CONFIG_T>
@@ -209,7 +210,7 @@ void pooling2d_cl(
 
     // TODO partition the arrays according to the reuse factor
     const int limit = pool_op_limit<CONFIG_T>();
-    #pragma HLS ALLOCATION function instances=CONFIG_T::pool_op limit=limit
+    #pragma HLS ALLOCATION function instances=pool_op<data_T, CONFIG_T::pool_height*CONFIG_T::pool_width, CONFIG_T::pool_op> limit=limit
     // Add any necessary padding
     unsigned padded_height = CONFIG_T::in_height + CONFIG_T::pad_top + CONFIG_T::pad_bottom;
     unsigned padded_width = CONFIG_T::in_width + CONFIG_T::pad_left + CONFIG_T::pad_right;
@@ -263,7 +264,7 @@ void pooling2d_cf(
 
     // TODO partition the arrays according to the reuse factor
     const int limit = pool_op_limit<CONFIG_T>();
-    #pragma HLS ALLOCATION function instances=CONFIG_T::pool_op limit=limit
+    #pragma HLS ALLOCATION function instances=pool_op<data_T, CONFIG_T::pool_height*CONFIG_T::pool_width, CONFIG_T::pool_op> limit=limit
     // Add any necessary padding
     unsigned padded_height = CONFIG_T::in_height + CONFIG_T::pad_top + CONFIG_T::pad_bottom;
     unsigned padded_width = CONFIG_T::in_width + CONFIG_T::pad_left + CONFIG_T::pad_right;
