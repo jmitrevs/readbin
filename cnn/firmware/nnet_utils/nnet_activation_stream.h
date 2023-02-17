@@ -40,7 +40,7 @@ void linear(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         LinearPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -62,7 +62,7 @@ void relu(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         ReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -98,7 +98,7 @@ void sigmoid(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         SigmoidPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -164,10 +164,10 @@ void softmax_latency(hls::stream<data_T> &data, hls::stream<res_T> &res){
         typename CONFIG_T::inv_table_t inv_exp_sum = invert_table[softmax_idx_from_real_val<typename CONFIG_T::exp_table_t,CONFIG_T>(exp_sum)];
 
         res_T out_pack;
-        #pragma HLS DATA_PACK variable=out_pack
+        PRAGMA_DATA_PACK(out_pack)
         SoftmaxInvPackLoop: for(unsigned j = 0; j < res_T::size; j++){
             #pragma HLS UNROLL
-            #pragma HLS ALLOCATION instances=mul limit=multiplier_limit operation
+            #pragma HLS ALLOCATION operation instances=mul limit=multiplier_limit
             out_pack[j] = exp_res[j] * inv_exp_sum;
         }
         res.write(out_pack);
@@ -238,10 +238,10 @@ void softmax_stable(hls::stream<data_T> &data, hls::stream<res_T> &res){
         typename CONFIG_T::inv_table_t inv_exp_sum = invert_table[softmax_idx_from_real_val<typename CONFIG_T::exp_table_t,CONFIG_T>(exp_sum)];
 
         res_T out_pack;
-        #pragma HLS DATA_PACK variable=out_pack
+        PRAGMA_DATA_PACK(out_pack)
         SoftmaxInvPackLoop: for(unsigned j = 0; j < res_T::size; j++){
             #pragma HLS UNROLL
-            #pragma HLS ALLOCATION instances=mul limit=multiplier_limit operation
+            #pragma HLS ALLOCATION operation instances=mul limit=multiplier_limit
             out_pack[j] = exp_res[j] * inv_exp_sum;
         }
         res.write(out_pack);
@@ -300,7 +300,7 @@ void softmax_legacy(hls::stream<data_T> &data, hls::stream<res_T> &res) {
         }
 
         res_T out_pack;
-        #pragma HLS DATA_PACK variable=out_pack
+        PRAGMA_DATA_PACK(out_pack)
         SoftmaxInvPackLoop: for(unsigned j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
 
@@ -356,7 +356,7 @@ void tanh(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         TanHPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -384,7 +384,7 @@ void hard_sigmoid(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         HardSigmoidPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -406,7 +406,7 @@ void hard_tanh(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         HardSigmoidPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -432,7 +432,7 @@ void leaky_relu(hls::stream<data_T> &data, typename data_T::value_type alpha, hl
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         LeakyReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -455,7 +455,7 @@ void thresholded_relu(hls::stream<data_T> &data, typename data_T::value_type the
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         ThresholdedReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -492,7 +492,7 @@ void softplus(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         SoftplusPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -531,7 +531,7 @@ void softsign(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         SoftsignPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -569,7 +569,7 @@ void elu(hls::stream<data_T> &data, typename data_T::value_type alpha, hls::stre
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         EluPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -616,7 +616,7 @@ void selu(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         SeluPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -646,7 +646,7 @@ void prelu(hls::stream<data_T> &data, typename data_T::value_type alpha[CONFIG_T
 
         data_T in_data = data.read();
         res_T out_data;
-        #pragma HLS DATA_PACK variable=out_data
+        PRAGMA_DATA_PACK(out_data)
 
         PReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
             #pragma HLS UNROLL
@@ -656,6 +656,50 @@ void prelu(hls::stream<data_T> &data, typename data_T::value_type alpha[CONFIG_T
         res.write(out_data);
     }
 }
+
+// *************************************************
+//       Binary TanH Activation
+// *************************************************
+template<class data_T, class res_T, typename CONFIG_T>
+void binary_tanh(hls::stream<data_T> &data, hls::stream<res_T> &res) {
+    PReLUActLoop: for (int i = 0; i < CONFIG_T::n_in / res_T::size; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data;
+        PRAGMA_DATA_PACK(out_data)
+
+        PReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
+            #pragma HLS UNROLL
+            if(in_data[j] > 0) out_data[j] = (typename res_T::value_type) 1;
+            else out_data[j] = (typename res_T::value_type) -1;
+        }
+        res.write(out_data);
+    }
+}
+
+// *************************************************
+//       Ternary TanH Activation
+// *************************************************
+template<class data_T, class res_T, typename CONFIG_T>
+void ternary_tanh(hls::stream<data_T> &data, hls::stream<res_T> &res) {
+    PReLUActLoop: for (int i = 0; i < CONFIG_T::n_in / res_T::size; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data;
+        PRAGMA_DATA_PACK(out_data)
+
+        PReLUPackLoop: for (int j = 0; j < res_T::size; j++) {
+            #pragma HLS UNROLL
+            if(in_data[j] > 1) out_data[j] = (typename res_T::value_type) 1;
+            else if (in_data[j] <=-1) out_data[j] = (typename res_T::value_type) -1;
+            else out_data[j] = (typename res_T::value_type) 0;
+        }
+        res.write(out_data);
+    }
+}
+
 
 
 }

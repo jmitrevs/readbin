@@ -1,9 +1,10 @@
 //#include <unistd.h>
-#include <iostream>
-//#include <cstdint>
-//#include <sstream>
-//#include <stdexcept>
-//#include <vector>
+//#include <iostream>
+#include <cstdint>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+#include <string>
 
 #include "daqdataformats/TriggerRecordHeaderData.hpp"
 #include "daqdataformats/FragmentHeader.hpp"
@@ -48,15 +49,15 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
     records_loop:
     while(read_offset < max_to_start_new && chan_offset <= NUM_CHANNELS - dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame) {
 
-        std::cout << "Current read index: " << std::hex << read_offset << ", max to start = " << max_to_start_new
-                  << ", chan_offset = " << chan_offset << std::endl;
+//        std::cout << "Current read index: " << std::hex << read_offset << ", max to start = " << max_to_start_new
+//                  << ", chan_offset = " << chan_offset << std::endl;
 
         const auto trigRecHeader = reinterpret_cast<dunedaq::daqdataformats::TriggerRecordHeaderData *>(&readbuf[read_offset]);
 
         if (trigRecHeader->trigger_record_header_marker != dunedaq::daqdataformats::TriggerRecordHeaderData::s_trigger_record_header_magic) {
 
-            std::cerr << "The parsed trigger record header did not have the right magic number: " << std::hex <<  trigRecHeader->trigger_record_header_marker
-                    << " (expected " << dunedaq::daqdataformats::TriggerRecordHeaderData::s_trigger_record_header_magic << ")\n";
+//            std::cerr << "The parsed trigger record header did not have the right magic number: " << std::hex <<  trigRecHeader->trigger_record_header_marker
+//                    << " (expected " << dunedaq::daqdataformats::TriggerRecordHeaderData::s_trigger_record_header_magic << ")\n";
             return;
         }
 
@@ -75,13 +76,13 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
 
 
             if (num_to_read - read_offset < sizeof(dunedaq::daqdataformats::FragmentHeader)) {
-                std::cout << "The read buffer is too small to contain the fragment header\n";
+//                std::cout << "The read buffer is too small to contain the fragment header\n";
                 return;
             }
             const auto fragmentHeader = reinterpret_cast<dunedaq::daqdataformats::FragmentHeader *>(&readbuf[read_offset]);
             if (fragmentHeader->fragment_header_marker != dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic) {
-                std::cerr << "The parsed fragment header did not have the right magic number: " << std::hex << fragmentHeader->fragment_header_marker
-                        << " (expected " << dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic << ")\n";
+//                std::cerr << "The parsed fragment header did not have the right magic number: " << std::hex << fragmentHeader->fragment_header_marker
+//                        << " (expected " << dunedaq::daqdataformats::FragmentHeader::s_fragment_header_magic << ")\n";
                 return;
             }
 
@@ -93,7 +94,7 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
             std::cout << "frames size = " << std::dec << frames_size << std::endl;
             // make sure that all the fragments were read in
             if (read_offset + frames_size > num_to_read) {
-                std::cout << "The frames size is too big to be read\n";
+//                std::cout << "The frames size is too big to be read\n";
                 return;
             }
 
@@ -102,12 +103,12 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
             // decrease number of frame blocks if reading full block would run past the end.
             const int num_frame_blocks = (num_frames % STRIDE >= NUM_NN_INPUTS - STRIDE) ? num_frame_blocks_nom : num_frame_blocks_nom - 1;
 
-            std::cout << "number of frames = " << std::dec << num_frames << std::endl;
-            std::cout << "number of blocks per frame = " << std::dec << dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame << std::endl;
-            std::cout << "number of adcs per block = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block << std::endl;
-            std::cout << "number of channels per adc = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::endl;
-            std::cout << "number of channels per pframe = " << dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame << std::endl;
-            std::cout << "number of frames blocks = " << std::dec << num_frame_blocks << std::endl;
+//            std::cout << "number of frames = " << std::dec << num_frames << std::endl;
+//            std::cout << "number of blocks per frame = " << std::dec << dunedaq::detdataformats::wib::WIBFrame::s_num_block_per_frame << std::endl;
+//            std::cout << "number of adcs per block = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_adc_per_block << std::endl;
+//            std::cout << "number of channels per adc = " << dunedaq::detdataformats::wib::ColdataBlock::s_num_ch_per_adc << std::endl;
+//            std::cout << "number of channels per pframe = " << dunedaq::detdataformats::wib::WIBFrame::s_num_ch_per_frame << std::endl;
+//            std::cout << "number of frames blocks = " << std::dec << num_frame_blocks << std::endl;
 
             coarse_frame_loop:
             for (int frame_block = 0; frame_block < num_frame_blocks; ++frame_block) {
@@ -162,7 +163,9 @@ void process_data(uint8_t readbuf[READ_SIZE], num_read_t num_to_read, num_read_t
 
                         // the way to send/receive data from the nn
                         hls::stream<input_t> nn_input;
+                        #pragma HLS STREAM variable=nn_input depth=NUM_NN_INPUTS
                         hls::stream<result_t> nn_output;
+                        #pragma HLS STREAM variable=nn_output depth=1
 
                         for (int i = 0; i < NUM_NN_INPUTS; i++) {
                             //std::cout << static_cast<float>(inarray[ich][i][0]) << ",";

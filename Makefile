@@ -1,6 +1,6 @@
 CXX=g++
 RM=rm -f
-CPPFLAGS=-O2 -std=c++17 -Icnn/firmware/ap_types -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include -I/cvmfs/sft.cern.ch/lcg/releases/Boost/1.78.0-f6f04/x86_64-centos8-gcc11-opt/include
+CPPFLAGS=-O2 -std=c++17 -I${XILINX_HLS}/include -I../daqdataformats/include -I../detdataformats/include -I${XILINX_XRT}/include -I/cvmfs/sft.cern.ch/lcg/releases/Boost/1.78.0-f6f04/x86_64-centos8-gcc11-opt/include
 VPPFLAGS=-I../daqdataformats/include -I../detdataformats/include -I. -I./cnn/firmware
 LDFLAGS=-L${XILINX_XRT}/lib -L/cvmfs/sft.cern.ch/lcg/releases/Boost/1.78.0-f6f04/x86_64-centos8-gcc11-opt/lib
 LDLIBS=-lboost_program_options -lOpenCL
@@ -12,7 +12,8 @@ KERNEL=process_data
 KERNEL_SRCS=process_data.cpp cnn/firmware/vplane.cpp
 
 #PLATFORM=xilinx_u2_gen3x4_xdma_gc_2_202110_1
-PLATFORM=xilinx_u55c_gen3x16_xdma_2_202110_1
+#PLATFORM=xilinx_u55c_gen3x16_xdma_2_202110_1
+PLATFORM=xilinx_u55c_gen3x16_xdma_3_202210_1
 #TYPE=sw_emu
 #TYPE=hw_emu
 TYPE=hw

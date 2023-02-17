@@ -5,6 +5,7 @@
 #include "ap_fixed.h"
 
 #include "nnet_utils/nnet_helpers.h"
+#include "nnet_utils/nnet_code_gen.h"
 //hls-fpga-machine-learning insert includes
 #include "nnet_utils/nnet_activation.h"
 #include "nnet_utils/nnet_activation_stream.h"
@@ -17,22 +18,24 @@
 #include "nnet_utils/nnet_pooling_stream.h"
  
 //hls-fpga-machine-learning insert weights
-#include "weights/w2.h"
-#include "weights/b2.h"
-#include "weights/w5.h"
-#include "weights/b5.h"
-#include "weights/w8.h"
-#include "weights/b8.h"
-#include "weights/w12.h"
-#include "weights/b12.h"
+//#include "weights/w2.h"
+//#include "weights/b2.h"
+//#include "weights/w5.h"
+//#include "weights/b5.h"
+//#include "weights/w8.h"
+//#include "weights/b8.h"
+//#include "weights/w12.h"
+//#include "weights/b12.h"
 
 //hls-fpga-machine-learning insert layer-config
 // Conv_1
 struct config2_mult : nnet::dense_config {
     static const unsigned n_in = 3;
     static const unsigned n_out = 16;
-    static const unsigned reuse_factor = 12;
-    static const unsigned strategy = nnet::resource;
+    static const unsigned reuse_factor = 16;
+    static const unsigned strategy = nnet::latency;
+    static const unsigned n_zeros = 0;
+    static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef bias2_t bias_t;
     typedef weight2_t weight_t;
@@ -51,13 +54,17 @@ struct config2 : nnet::conv1d_config {
     static const unsigned stride_width = 2;
     static const unsigned dilation = 1;
     static const unsigned out_width = 99;
-    static const unsigned reuse_factor = 12;
+    static const unsigned reuse_factor = 16;
     static const unsigned n_zeros = 3;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::resource;
-    static const nnet::conv_implementation implementation = nnet::conv_implementation::encoded;
+    static const unsigned strategy = nnet::latency;
+    static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_width = 6;
     static const ap_uint<filt_width> pixels[min_width];
+    static const unsigned n_partitions = 99;
+    static const unsigned n_pixels = out_width / n_partitions;
+    template<class data_T, class CONFIG_T>
+    using fill_buffer = nnet::FillConv1DBuffer<data_T, CONFIG_T>;
     typedef model_default_t accum_t;
     typedef bias2_t bias_t;
     typedef weight2_t weight_t;
@@ -88,8 +95,8 @@ struct config4 : nnet::pooling1d_config {
     static const unsigned pad_right = 0;
     static const unsigned stride_width = 2;
     static const nnet::Pool_Op pool_op = nnet::Max;
-    static const nnet::conv_implementation implementation = nnet::conv_implementation::encoded;
-    static const unsigned reuse = 16;
+    static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
+    static const unsigned reuse_factor = 16;
     typedef maxpool_1_default_t accum_t;
 };
 
@@ -98,7 +105,9 @@ struct config5_mult : nnet::dense_config {
     static const unsigned n_in = 80;
     static const unsigned n_out = 32;
     static const unsigned reuse_factor = 16;
-    static const unsigned strategy = nnet::resource;
+    static const unsigned strategy = nnet::latency;
+    static const unsigned n_zeros = 0;
+    static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef bias5_t bias_t;
     typedef weight5_t weight_t;
@@ -120,10 +129,14 @@ struct config5 : nnet::conv1d_config {
     static const unsigned reuse_factor = 16;
     static const unsigned n_zeros = 1388;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::resource;
-    static const nnet::conv_implementation implementation = nnet::conv_implementation::encoded;
+    static const unsigned strategy = nnet::latency;
+    static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_width = 9;
     static const ap_uint<filt_width> pixels[min_width];
+    static const unsigned n_partitions = 23;
+    static const unsigned n_pixels = out_width / n_partitions;
+    template<class data_T, class CONFIG_T>
+    using fill_buffer = nnet::FillConv1DBuffer<data_T, CONFIG_T>;
     typedef model_default_t accum_t;
     typedef bias5_t bias_t;
     typedef weight5_t weight_t;
@@ -154,8 +167,8 @@ struct config7 : nnet::pooling1d_config {
     static const unsigned pad_right = 0;
     static const unsigned stride_width = 2;
     static const nnet::Pool_Op pool_op = nnet::Max;
-    static const nnet::conv_implementation implementation = nnet::conv_implementation::encoded;
-    static const unsigned reuse = 16;
+    static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
+    static const unsigned reuse_factor = 16;
     typedef maxpool_2_default_t accum_t;
 };
 
@@ -164,7 +177,9 @@ struct config8_mult : nnet::dense_config {
     static const unsigned n_in = 288;
     static const unsigned n_out = 64;
     static const unsigned reuse_factor = 16;
-    static const unsigned strategy = nnet::resource;
+    static const unsigned strategy = nnet::latency;
+    static const unsigned n_zeros = 0;
+    static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     typedef model_default_t accum_t;
     typedef bias8_t bias_t;
     typedef weight8_t weight_t;
@@ -186,10 +201,14 @@ struct config8 : nnet::conv1d_config {
     static const unsigned reuse_factor = 16;
     static const unsigned n_zeros = 13172;
     static const bool store_weights_in_bram = false;
-    static const unsigned strategy = nnet::resource;
-    static const nnet::conv_implementation implementation = nnet::conv_implementation::encoded;
+    static const unsigned strategy = nnet::latency;
+    static const nnet::conv_implementation implementation = nnet::conv_implementation::linebuffer;
     static const unsigned min_width = 11;
     static const ap_uint<filt_width> pixels[min_width];
+    static const unsigned n_partitions = 3;
+    static const unsigned n_pixels = out_width / n_partitions;
+    template<class data_T, class CONFIG_T>
+    using fill_buffer = nnet::FillConv1DBuffer<data_T, CONFIG_T>;
     typedef model_default_t accum_t;
     typedef bias8_t bias_t;
     typedef weight8_t weight_t;
@@ -211,7 +230,7 @@ struct config10 : nnet::pooling1d_config {
     static const unsigned n_in = 3;
     static const unsigned n_filt = 64;
     static const nnet::Pool_Op pool_op = nnet::Max;
-    static const unsigned reuse = 16;
+    static const unsigned reuse_factor = 16;
     typedef globalmaxpool_1_default_t accum_t;
 };
 
@@ -220,10 +239,11 @@ struct config12 : nnet::dense_config {
     static const unsigned n_in = 64;
     static const unsigned n_out = 1;
     static const unsigned io_type = nnet::io_stream;
-    static const unsigned strategy = nnet::resource;
+    static const unsigned strategy = nnet::latency;
     static const unsigned reuse_factor = 16;
     static const unsigned n_zeros = 21;
     static const unsigned n_nonzeros = 43;
+    static const unsigned multiplier_limit = DIV_ROUNDUP(n_in * n_out, reuse_factor) - n_zeros / reuse_factor;
     static const bool store_weights_in_bram = false;
     typedef model_default_t accum_t;
     typedef bias12_t bias_t;
